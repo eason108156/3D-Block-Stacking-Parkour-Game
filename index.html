@@ -39,7 +39,6 @@
             width: 100%;
             height: 100%;
         }
-        /* UI 蓋層 */
         .overlay {
             position: absolute;
             top: 0;
@@ -53,7 +52,6 @@
             background: rgba(11, 15, 25, 0.85);
             backdrop-filter: blur(8px);
             z-index: 10;
-            transition: opacity 0.3s;
         }
         .overlay.hidden {
             display: none;
@@ -118,7 +116,6 @@
             transform: scale(1.05);
             box-shadow: 0 6px 25px rgba(37, 99, 235, 0.7);
         }
-        /* 左上角 HUD */
         #hud {
             position: absolute;
             top: 15px;
@@ -137,7 +134,6 @@
         .hud-item span {
             color: #38bdf8;
         }
-        /* 手機底部提示 */
         #mobile-tip {
             position: absolute;
             bottom: 12px;
@@ -154,7 +150,7 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
-    <!-- 左上角即時資訊 -->
+    <!-- 左上角資訊 -->
     <div id="hud">
         <div class="hud-item">時間：<span id="timeDisplay">00:00.0</span></div>
         <div class="hud-item">過關數：<span id="scoreDisplay">0</span></div>
@@ -165,8 +161,8 @@
     <div id="startOverlay" class="overlay">
         <h1>立體 10 層跑酷</h1>
         <p class="subtitle">
-            畫面共 10 層！按<b>空白鍵</b>或<b>點選螢幕</b>在下方墊高方塊。<br>
-            身體撞擊障礙會碎裂並下墜，頭部核心方塊撞擊則直接死亡！
+            畫面共 10 層！按<b>空白鍵</b>或<b>點擊螢幕</b>墊高方塊。<br>
+            撞到障礙物時身體會被削掉並安全滑過，穿過後平順掉落！
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -189,27 +185,24 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// 介面 DOM
 const timeDisplay = document.getElementById('timeDisplay');
 const scoreDisplay = document.getElementById('scoreDisplay');
 const startOverlay = document.getElementById('startOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const gameOverStats = document.getElementById('gameOverStats');
 
-// 遊戲參數與常數
 const LAYERS = 10;
 let layerHeight = 0;
 let blockWidth = 0;
 
-// 難度配置
 let currentDifficulty = 'normal';
 const DIFFICULTY_CONFIG = {
-    easy: { baseSpeed: 240, maxBlocks: 6, interval: 2.2, growRate: 20 },
-    normal: { baseSpeed: 300, maxBlocks: 7, interval: 1.8, growRate: 15 },
-    hard: { baseSpeed: 380, maxBlocks: 8, interval: 1.5, growRate: 10 }
+    easy: { baseSpeed: 230, maxBlocks: 6, interval: 2.3, growRate: 20 },
+    normal: { baseSpeed: 280, maxBlocks: 7, interval: 1.9, growRate: 15 },
+    hard: { baseSpeed: 350, maxBlocks: 8, interval: 1.6, growRate: 10 }
 };
 
-let gameState = 'MENU'; // 'MENU', 'PLAYING', 'GAMEOVER'
+let gameState = 'MENU';
 let startTime = 0;
 let elapsedTime = 0;
 let score = 0;
@@ -217,11 +210,11 @@ let score = 0;
 // 玩家屬性
 const player = {
     x: 0,
-    currentVisualBottom: 9, // 平滑插值用 (層索引)
-    targetBottom: 9,        // 底端所在的層 (最底是 9)
-    cubeCount: 1,           // 包含頭部與身體方塊的總數 (1~10)
-    dropSpeed: 22,          // 下墜速度 (層/秒)
-    isFalling: false
+    currentVisualBottom: 9, // 當前底部位於的層（支援小數插值平滑移動）
+    targetBottom: 9,        // 目標底部層
+    cubeCount: 1,           // 方塊總數 (1~10)
+    dropSpeed: 5.5,         // 下墜速度 (大幅放慢，約每秒掉 5.5 層，手感平順)
+    hangTimer: 0            // 滯空保護倒數 (秒)
 };
 
 let obstacles = [];
@@ -229,13 +222,12 @@ let particles = [];
 let nextObstacleTime = 0;
 let lastFrameTime = 0;
 
-// 視窗自適應
 function resizeCanvas() {
     const container = document.getElementById('game-container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     layerHeight = canvas.height / LAYERS;
-    blockWidth = layerHeight * 1.05; // 稍寬呈現立體厚度
+    blockWidth = layerHeight * 1.05;
     player.x = canvas.width * 0.18;
 }
 window.addEventListener('resize', resizeCanvas);
@@ -254,11 +246,10 @@ function startGame() {
     startOverlay.classList.add('hidden');
     gameOverOverlay.classList.add('hidden');
     
-    // 初始化玩家狀態
     player.cubeCount = 1;
     player.targetBottom = 9;
     player.currentVisualBottom = 9;
-    player.isFalling = false;
+    player.hangTimer = 0;
     
     obstacles = [];
     particles = [];
@@ -266,21 +257,21 @@ function startGame() {
     elapsedTime = 0;
     startTime = performance.now();
     lastFrameTime = performance.now();
-    nextObstacleTime = 1.0; // 第一波在 1 秒後出現
+    nextObstacleTime = 1.2;
     gameState = 'PLAYING';
 }
 
-// 增加身體方塊操作（往底部墊高）
+// 增加身體方塊操作（在底部墊高）
 function addPlayerCube() {
     if (gameState !== 'PLAYING') return;
     if (player.cubeCount < LAYERS) {
         player.cubeCount++;
-        // 產生微小的向上脈衝視覺與輕微粒子
-        createAddEffect(player.x, (player.targetBottom - player.cubeCount + 1) * layerHeight);
+        // 任何時候手動墊高，若正處於空中，維持當前懸空高度繼續墊高
+        createAddEffect(player.x, (player.currentVisualBottom - player.cubeCount + 1) * layerHeight);
     }
 }
 
-// 操作監聽 (鍵盤 + 觸控)
+// 鍵盤與觸控
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
         e.preventDefault();
@@ -299,11 +290,11 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-// 繪製偽 3D 立體方塊
+// 繪製立體等角方塊
 function drawIsometricCube(x, y, w, h, mainColor, topColor, sideColor, isHead = false) {
-    const depth = h * 0.28; // 3D 厚度
+    const depth = h * 0.28;
 
-    // 1. 右側面 (陰影面)
+    // 右側陰影面
     ctx.fillStyle = sideColor;
     ctx.beginPath();
     ctx.moveTo(x + w, y);
@@ -314,7 +305,7 @@ function drawIsometricCube(x, y, w, h, mainColor, topColor, sideColor, isHead = 
     ctx.fill();
     ctx.stroke();
 
-    // 2. 頂面 (高光面)
+    // 頂部高光面
     ctx.fillStyle = topColor;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -325,12 +316,12 @@ function drawIsometricCube(x, y, w, h, mainColor, topColor, sideColor, isHead = 
     ctx.fill();
     ctx.stroke();
 
-    // 3. 正面
+    // 正面
     ctx.fillStyle = mainColor;
     ctx.fillRect(x, y, w, h);
     ctx.strokeRect(x, y, w, h);
 
-    // 如果是玩家頭部核心方塊，加上專屬眼睛/核心標記
+    // 核心眼睛
     if (isHead) {
         ctx.fillStyle = '#ffffff';
         const eyeSize = w * 0.18;
@@ -340,18 +331,17 @@ function drawIsometricCube(x, y, w, h, mainColor, topColor, sideColor, isHead = 
     }
 }
 
-// 粒子特效
 function createExplosion(x, y, color) {
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 15; i++) {
         particles.push({
             x: x + blockWidth / 2,
             y: y + layerHeight / 2,
-            vx: (Math.random() - 0.5) * 350,
-            vy: (Math.random() - 0.5) * 350,
-            size: Math.random() * 7 + 4,
+            vx: (Math.random() - 0.5) * 320,
+            vy: (Math.random() - 0.5) * 320,
+            size: Math.random() * 6 + 4,
             color: color,
             alpha: 1,
-            life: 0.55
+            life: 0.5
         });
     }
 }
@@ -361,8 +351,8 @@ function createAddEffect(x, y) {
         particles.push({
             x: x + Math.random() * blockWidth,
             y: y + layerHeight,
-            vx: (Math.random() - 0.5) * 60,
-            vy: -Math.random() * 120 - 40,
+            vx: (Math.random() - 0.5) * 50,
+            vy: -Math.random() * 100 - 30,
             size: 3,
             color: '#38bdf8',
             alpha: 0.9,
@@ -371,18 +361,12 @@ function createAddEffect(x, y) {
     }
 }
 
-// 障礙生成邏輯
 function spawnObstacle() {
     const config = DIFFICULTY_CONFIG[currentDifficulty];
-    
-    // 依本局時間增加障礙層數 (最多至難度上限，最高不超過 8 層)
     const timeGrown = Math.floor(elapsedTime / config.growRate);
     const targetBlocks = Math.min(config.maxBlocks, Math.max(2, 2 + timeGrown));
 
-    // 10 層中隨機挑選 targetBlocks 個層作為障礙
-    // 為保證合理通關，必保留 1~2 層的連續安全空隙
     const layers = Array.from({ length: LAYERS }, (_, i) => i);
-    // 隨機選一個安全出口 (確保有生路)
     const safeLayer = Math.floor(Math.random() * LAYERS);
     const dangerCandidates = layers.filter(l => l !== safeLayer);
     dangerCandidates.sort(() => Math.random() - 0.5);
@@ -392,88 +376,106 @@ function spawnObstacle() {
     obstacles.push({
         x: canvas.width + 50,
         layers: obstacleLayers,
-        cleared: false
+        cleared: false,
+        hitProcessed: false
     });
 }
 
-// 遊戲主循環
 function update(dt) {
     if (gameState !== 'PLAYING') return;
 
     elapsedTime += dt;
     const config = DIFFICULTY_CONFIG[currentDifficulty];
-    const currentSpeed = config.baseSpeed + elapsedTime * 2.5;
+    const currentSpeed = config.baseSpeed + elapsedTime * 2.2;
 
-    // 時間與過關更新
+    // 更新時間與過關數
     const mins = Math.floor(elapsedTime / 60);
     const secs = (elapsedTime % 60).toFixed(1);
     timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
     scoreDisplay.textContent = score;
 
-    // 障礙物生成計時
     nextObstacleTime -= dt;
     if (nextObstacleTime <= 0) {
         spawnObstacle();
-        // 隨機在基礎間隔浮動
         nextObstacleTime = config.interval * (0.85 + Math.random() * 0.35);
     }
 
-    // 玩家方塊重力下墜平滑邏輯
-    if (player.currentVisualBottom < player.targetBottom) {
-        player.currentVisualBottom += player.dropSpeed * dt;
-        if (player.currentVisualBottom >= player.targetBottom) {
-            player.currentVisualBottom = player.targetBottom;
-            player.isFalling = false;
+    // 檢查是否有正在橫向重疊穿越中的障礙物
+    let obstacleUnderPlayer = null;
+    const hitPadding = 4; // 碰撞容錯邊距
+
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        if (player.x + blockWidth - hitPadding > obs.x && player.x + hitPadding < obs.x + blockWidth) {
+            obstacleUnderPlayer = obs;
+            break;
         }
     }
 
-    // 當前玩家本體 (核心) 與 身體所佔據的垂直層數
-    // 核心位在最高處，身體在下方
-    const playerBaseLayer = Math.round(player.currentVisualBottom);
-    const coreLayer = playerBaseLayer - player.cubeCount + 1;
+    // 當前頭部核心所在的層數 (以視覺位置為準)
+    const currentCoreLayer = Math.round(player.currentVisualBottom) - player.cubeCount + 1;
 
-    // 障礙物移動與碰撞判定
+    // 處理與當前障礙物的碰撞與支撐
+    if (obstacleUnderPlayer) {
+        const obs = obstacleUnderPlayer;
+
+        // 1. 如果頭部撞到 -> 死亡
+        if (obs.layers.includes(currentCoreLayer)) {
+            createExplosion(player.x, currentCoreLayer * layerHeight, '#00f2fe');
+            gameOver();
+            return;
+        }
+
+        // 2. 如果身體撞到 -> 削掉身體方塊，並由障礙物頂端支撐，絕不在穿越時下掉！
+        if (!obs.hitProcessed) {
+            let hitCount = 0;
+            for (let b = 1; b < player.cubeCount; b++) {
+                const bodyLayer = currentCoreLayer + b;
+                if (obs.layers.includes(bodyLayer)) {
+                    createExplosion(player.x, bodyLayer * layerHeight, '#f43f5e');
+                    hitCount++;
+                }
+            }
+
+            if (hitCount > 0) {
+                // 削掉撞毀的方塊
+                player.cubeCount = Math.max(1, player.cubeCount - hitCount);
+                obs.hitProcessed = true;
+                // 重置滯空緩衝時間 (0.2 秒)，讓玩家穿過後有充足反應期
+                player.hangTimer = 0.22;
+            }
+        }
+
+        // 穿越障礙物期間：被撞掉後的高度由障礙物頂部穩穩托住，不往下掉
+        player.targetBottom = player.currentVisualBottom;
+    } else {
+        // 沒有在障礙物上方時，底端目標恢復為地底第 9 層
+        player.targetBottom = 9;
+
+        // 若有滯空緩衝保護，先消耗滯空時間
+        if (player.hangTimer > 0) {
+            player.hangTimer -= dt;
+        } else {
+            // 平滑下墜：速度舒適、不暴衝
+            if (player.currentVisualBottom < player.targetBottom) {
+                player.currentVisualBottom += player.dropSpeed * dt;
+                if (player.currentVisualBottom > player.targetBottom) {
+                    player.currentVisualBottom = player.targetBottom;
+                }
+            }
+        }
+    }
+
+    // 障礙物位移與計分
     for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.x -= currentSpeed * dt;
 
-        // 計算玩家與障礙物在 X 軸的重疊
-        const playerRight = player.x + blockWidth;
-        const obsRight = obs.x + blockWidth;
-        const isCollidingX = (player.x < obsRight && playerRight > obs.x);
-
-        if (isCollidingX) {
-            // 檢查本體方塊 (Core) 碰撞 -> 直接死亡
-            if (obs.layers.includes(coreLayer)) {
-                createExplosion(player.x, coreLayer * layerHeight, '#00f2fe');
-                gameOver();
-                return;
-            }
-
-            // 檢查身體方塊碰撞 -> 身體碎裂、消除並下墜
-            for (let b = 1; b < player.cubeCount; b++) {
-                const bodyLayer = coreLayer + b;
-                if (obs.layers.includes(bodyLayer)) {
-                    // 該身體方塊撞毀
-                    createExplosion(player.x, bodyLayer * layerHeight, '#f43f5e');
-                    // 消除被撞擊的方塊（高度減 1）
-                    player.cubeCount--;
-                    // 下方失去了支撐，觸發下墜至最底層或合適層
-                    player.targetBottom = 9; 
-                    player.isFalling = true;
-                    // 同一障礙物只觸發一次消減
-                    break;
-                }
-            }
-        }
-
-        // 計分：順利通過障礙物
         if (!obs.cleared && obs.x + blockWidth < player.x) {
             obs.cleared = true;
             score++;
         }
 
-        // 移出螢幕刪除
         if (obs.x < -blockWidth * 2) {
             obstacles.splice(i, 1);
         }
@@ -496,34 +498,32 @@ function draw() {
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = '#0f172a';
 
-    // 1. 繪製 10 層背景網格跑道
+    // 1. 繪製 10 層跑道背景
     for (let i = 0; i < LAYERS; i++) {
         const y = i * layerHeight;
         ctx.fillStyle = (i % 2 === 0) ? '#131c31' : '#0f172a';
         ctx.fillRect(0, y, canvas.width, layerHeight);
 
-        // 分割虛線
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
 
-        // 標記層數 (左側半透明小數字)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.font = '10px monospace';
         ctx.fillText(`L${10 - i}`, 8, y + layerHeight * 0.6);
     }
 
-    // 2. 繪製障礙物 (立體紅橘方塊)
+    // 2. 繪製障礙物
     obstacles.forEach(obs => {
         obs.layers.forEach(l => {
             const y = l * layerHeight;
             drawIsometricCube(
                 obs.x, y, blockWidth, layerHeight,
-                '#ef4444', // 正面
-                '#f87171', // 頂面
-                '#991b1b', // 側面
+                '#ef4444',
+                '#f87171',
+                '#991b1b',
                 false
             );
         });
@@ -533,30 +533,28 @@ function draw() {
     const visualBottomY = player.currentVisualBottom * layerHeight;
     for (let i = 0; i < player.cubeCount; i++) {
         const y = visualBottomY - (i * layerHeight);
-        const isCore = (i === player.cubeCount - 1); // 最頂層為核心
+        const isCore = (i === player.cubeCount - 1);
 
         if (isCore) {
-            // 核心本體：高科技青藍色
             drawIsometricCube(
                 player.x, y, blockWidth, layerHeight,
-                '#0284c7', // 正面
-                '#38bdf8', // 頂面
-                '#0369a1', // 側面
+                '#0284c7',
+                '#38bdf8',
+                '#0369a1',
                 true
             );
         } else {
-            // 身體方塊：深藍紫霓虹
             drawIsometricCube(
                 player.x, y, blockWidth, layerHeight,
-                '#4f46e5', // 正面
-                '#818cf8', // 頂面
-                '#3730a3', // 側面
+                '#4f46e5',
+                '#818cf8',
+                '#3730a3',
                 false
             );
         }
     }
 
-    // 4. 繪製粒子效果
+    // 4. 繪製粒子
     particles.forEach(p => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
@@ -575,10 +573,9 @@ function gameOver() {
     gameOverOverlay.classList.remove('hidden');
 }
 
-// 遊戲主迴圈
 function gameLoop(timestamp) {
     if (!lastFrameTime) lastFrameTime = timestamp;
-    const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1); // 避免分頁切換卡頓跳幀
+    const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
     lastFrameTime = timestamp;
 
     update(dt);
