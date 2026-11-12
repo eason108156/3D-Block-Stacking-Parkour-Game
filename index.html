@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>立體方塊跑酷 - 2D精準版</title>
+    <title>立體方塊跑酷 - 道具強化版</title>
     <style>
         * {
             margin: 0;
@@ -135,11 +135,80 @@
         .hud-item span {
             color: #38bdf8;
         }
+
+        /* 道具欄 (右下角操作按鈕) */
+        #item-bar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 5;
+        }
+        .item-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #334155;
+            color: #94a3b8;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .item-btn.has-item {
+            border-color: #f59e0b;
+            color: #f8fafc;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+        }
+        .item-btn.nuke.has-item {
+            border-color: #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);
+        }
+        .item-btn.aiming {
+            border-color: #38bdf8;
+            background: #0369a1;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.8);
+            animation: pulse 0.8s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+        .item-btn:active {
+            transform: scale(0.95);
+        }
+        .item-count {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        #aim-banner {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(2, 132, 199, 0.9);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 0 20px rgba(2, 132, 199, 0.6);
+            display: none;
+            z-index: 6;
+            pointer-events: none;
+        }
         #mobile-tip {
             position: absolute;
             bottom: 12px;
-            width: 100%;
-            text-align: center;
+            left: 20px;
             font-size: 0.8rem;
             color: #64748b;
             pointer-events: none;
@@ -155,13 +224,30 @@
         <div class="hud-item">時間：<span id="timeDisplay">00:00.0</span></div>
         <div class="hud-item">過關數：<span id="scoreDisplay">0</span></div>
     </div>
-    <div id="mobile-tip">空白鍵 (Space) 或 點擊螢幕增加方塊墊高</div>
+
+    <!-- 瞄準模式提示條 -->
+    <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！</div>
+
+    <!-- 道具按鈕區 (支援鍵盤 1, 2 與觸控點擊) -->
+    <div id="item-bar">
+        <button class="item-btn" id="btnC4" onclick="toggleC4Aim(event)">
+            <span>💣 C4 [1]</span>
+            <span class="item-count" id="c4Count">0</span>
+        </button>
+        <button class="item-btn nuke" id="btnNuke" onclick="useNuke(event)">
+            <span>☢️ 核彈 [2]</span>
+            <span class="item-count" id="nukeCount">0</span>
+        </button>
+    </div>
+
+    <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高方塊</div>
 
     <div id="startOverlay" class="overlay">
         <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
-            畫面精確分為 10 等層！按<b>空白鍵</b>或<b>點擊螢幕</b>向上墊高。<br>
-            撞擊障礙時底層方塊被削掉，核心安全滑過後平順掉落！
+            撞擊<b>金色獎勵方塊★</b>獲取道具！<br>
+            <b>💣 C4</b>：消耗並炸掉任意指定的一格障礙方塊。<br>
+            <b>☢️ 核彈</b>：一鍵炸毀前方整列障礙物！
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -188,10 +274,15 @@ const scoreDisplay = document.getElementById('scoreDisplay');
 const startOverlay = document.getElementById('startOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const gameOverStats = document.getElementById('gameOverStats');
+const c4CountDisplay = document.getElementById('c4Count');
+const nukeCountDisplay = document.getElementById('nukeCount');
+const btnC4 = document.getElementById('btnC4');
+const btnNuke = document.getElementById('btnNuke');
+const aimBanner = document.getElementById('aim-banner');
 
 const LAYERS = 10;
 let layerHeight = 0;
-let blockSize = 0; // 2D 正方形大小
+let blockSize = 0;
 
 let currentDifficulty = 'normal';
 const DIFFICULTY_CONFIG = {
@@ -205,25 +296,35 @@ let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
 
+// 道具數量與狀態
+let c4Amount = 0;
+let nukeAmount = 0;
+let isAimingC4 = false;
+
 const player = {
     x: 0,
-    currentVisualBottom: 9, // 當前底部的連續位置 (浮點數，支援平滑墜落)
-    cubeCount: 1,           // 方塊數量 (1~10)
-    dropSpeed: 6.0,         // 平順下墜速度 (層/秒)
-    hangTimer: 0            // 滯空保護時間
+    currentVisualBottom: 9,
+    cubeCount: 1,
+    dropSpeed: 6.0,
+    hangTimer: 0
 };
 
 let obstacles = [];
+let bonusCubes = []; // 獎勵方塊
 let particles = [];
 let nextObstacleTime = 0;
+let nextBonusTime = 0;
 let lastFrameTime = 0;
+
+// 全螢幕閃光特效 (核彈用)
+let flashAlpha = 0;
 
 function resizeCanvas() {
     const container = document.getElementById('game-container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     layerHeight = canvas.height / LAYERS;
-    blockSize = layerHeight; // 純 2D 精準正方形
+    blockSize = layerHeight;
     player.x = canvas.width * 0.18;
 }
 window.addEventListener('resize', resizeCanvas);
@@ -238,6 +339,15 @@ function selectDifficulty(diff) {
     });
 }
 
+function updateItemsUI() {
+    c4CountDisplay.textContent = c4Amount;
+    nukeCountDisplay.textContent = nukeAmount;
+    btnC4.classList.toggle('has-item', c4Amount > 0);
+    btnNuke.classList.toggle('has-item', nukeAmount > 0);
+    btnC4.classList.toggle('aiming', isAimingC4);
+    aimBanner.style.display = isAimingC4 ? 'block' : 'none';
+}
+
 function startGame() {
     startOverlay.classList.add('hidden');
     gameOverOverlay.classList.add('hidden');
@@ -247,129 +357,137 @@ function startGame() {
     player.hangTimer = 0;
     
     obstacles = [];
+    bonusCubes = [];
     particles = [];
     score = 0;
     elapsedTime = 0;
     obstacleIdCounter = 0;
+    
+    c4Amount = 1; // 開局贈送 1 顆 C4 體驗
+    nukeAmount = 0;
+    isAimingC4 = false;
+    updateItemsUI();
+
     lastFrameTime = performance.now();
     nextObstacleTime = 1.2;
+    nextBonusTime = 3.5; // 3.5 秒後出現第一個獎勵方塊
     gameState = 'PLAYING';
 }
 
 function addPlayerCube() {
     if (gameState !== 'PLAYING') return;
-    
-    // 當前頭部所在層
     const currentCoreLayer = player.currentVisualBottom - player.cubeCount + 1;
-    if (currentCoreLayer <= 0.05 || player.cubeCount >= LAYERS) {
-        return;
-    }
+    if (currentCoreLayer <= 0.05 || player.cubeCount >= LAYERS) return;
 
     player.cubeCount++;
     createAddEffect(player.x, (currentCoreLayer - 1) * layerHeight);
 }
 
+// 道具：切換 C4 瞄準狀態
+function toggleC4Aim(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING' || c4Amount <= 0) return;
+    isAimingC4 = !isAimingC4;
+    updateItemsUI();
+}
+
+// 道具：使用核彈
+function useNuke(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING' || nukeAmount <= 0) return;
+
+    // 尋找在玩家前方最近的第一組障礙物
+    let targetIndex = -1;
+    let minDistance = Infinity;
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        if (obs.x + blockSize > player.x && obs.x < minDistance) {
+            minDistance = obs.x;
+            targetIndex = i;
+        }
+    }
+
+    if (targetIndex !== -1) {
+        nukeAmount--;
+        updateItemsUI();
+
+        const targetObs = obstacles[targetIndex];
+        // 炸裂整列障礙物
+        targetObs.layers.forEach(layer => {
+            createExplosion(targetObs.x, layer * layerHeight, '#f59e0b', 24);
+        });
+        obstacles.splice(targetIndex, 1);
+        score++; // 視為擊破通過
+
+        // 觸發全螢幕白光震顫
+        flashAlpha = 0.85;
+    }
+}
+
+// 點擊事件：支援墊高與 C4 點擊引爆指定方塊
+canvas.addEventListener('pointerdown', (e) => {
+    if (gameState !== 'PLAYING') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const clickedLayer = Math.floor(clickY / layerHeight);
+
+    // 檢查是否點擊到了某個紅色障礙物方塊
+    let hitObstacle = false;
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        if (clickX >= obs.x && clickX <= obs.x + blockSize && obs.layers.has(clickedLayer)) {
+            // 如果玩家處於瞄準模式，或者身上擁有 C4，即刻引爆該格！
+            if (c4Amount > 0) {
+                c4Amount--;
+                obs.layers.delete(clickedLayer); // 炸除該格指定障礙！
+                createExplosion(obs.x, clickedLayer * layerHeight, '#38bdf8', 25);
+                hitObstacle = true;
+                isAimingC4 = false;
+                updateItemsUI();
+                break;
+            }
+        }
+    }
+
+    // 若未點擊引爆障礙方塊，且非瞄準狀態，則執行墊高跳躍
+    if (!hitObstacle && !isAimingC4) {
+        addPlayerCube();
+    } else if (isAimingC4 && !hitObstacle) {
+        // 點擊空處取消瞄準
+        isAimingC4 = false;
+        updateItemsUI();
+    }
+});
+
+// 鍵盤操作
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
         e.preventDefault();
         if (gameState === 'PLAYING') {
+            if (isAimingC4) isAimingC4 = false; // 取消瞄準
             addPlayerCube();
         } else if (gameState === 'GAMEOVER') {
             startGame();
         }
+    } else if (e.code === 'Digit1' || e.code === 'KeyC') {
+        toggleC4Aim();
+    } else if (e.code === 'Digit2' || e.code === 'KeyN') {
+        useNuke();
     }
 });
 
-canvas.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    if (gameState === 'PLAYING') {
-        addPlayerCube();
-    }
-});
-
-// 繪製 2D 精準方塊
-function draw2DBlock(x, y, size, type) {
-    const pad = 1.5; // 邊界微縫隙，方便一眼看清方塊數量
-    const bx = x + pad;
-    const by = y + pad;
-    const bs = size - pad * 2;
-
-    if (type === 'core') {
-        // 核心頭部：青藍色科技感
-        ctx.fillStyle = '#0ea5e9';
-        ctx.fillRect(bx, by, bs, bs);
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(bx, by, bs, bs);
-
-        // 眼睛
-        ctx.fillStyle = '#ffffff';
-        const eyeSize = bs * 0.22;
-        ctx.fillRect(bx + bs * 0.6, by + bs * 0.28, eyeSize, eyeSize);
-        ctx.fillStyle = '#0284c7';
-        ctx.fillRect(bx + bs * 0.68, by + bs * 0.32, eyeSize * 0.55, eyeSize * 0.55);
-
-    } else if (type === 'body') {
-        // 身體方塊：深藍紫方格
-        ctx.fillStyle = '#4f46e5';
-        ctx.fillRect(bx, by, bs, bs);
-        ctx.strokeStyle = '#818cf8';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bs, bs);
-
-        // 內部裝飾方芯
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.fillRect(bx + bs * 0.25, by + bs * 0.25, bs * 0.5, bs * 0.5);
-
-    } else if (type === 'obstacle') {
-        // 障礙方塊：鮮紅警告方塊
-        ctx.fillStyle = '#dc2626';
-        ctx.fillRect(bx, by, bs, bs);
-        ctx.strokeStyle = '#f87171';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bs, bs);
-
-        // 標記紅色「✕」符號
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        const m = bs * 0.28;
-        ctx.moveTo(bx + m, by + m);
-        ctx.lineTo(bx + bs - m, by + bs - m);
-        ctx.moveTo(bx + bs - m, by + m);
-        ctx.lineTo(bx + m, by + bs - m);
-        ctx.stroke();
-    }
-}
-
-function createExplosion(x, y, color) {
-    for (let i = 0; i < 14; i++) {
-        particles.push({
-            x: x + blockSize / 2,
-            y: y + layerHeight / 2,
-            vx: (Math.random() - 0.5) * 320,
-            vy: (Math.random() - 0.5) * 320,
-            size: Math.random() * 5 + 3,
-            color: color,
-            alpha: 1,
-            life: 0.45
-        });
-    }
-}
-
-function createAddEffect(x, y) {
-    for (let i = 0; i < 4; i++) {
-        particles.push({
-            x: x + Math.random() * blockSize,
-            y: y + layerHeight,
-            vx: (Math.random() - 0.5) * 40,
-            vy: -Math.random() * 80 - 20,
-            size: 3,
-            color: '#38bdf8',
-            alpha: 0.9,
-            life: 0.3
-        });
-    }
+// 生成獎勵方塊
+function spawnBonusCube() {
+    // 隨機出現在 1~9 層中
+    const layer = Math.floor(Math.random() * LAYERS);
+    bonusCubes.push({
+        x: canvas.width + 30,
+        layer: layer,
+        type: Math.random() < 0.65 ? 'C4' : 'NUKE', // 65% C4, 35% 核彈
+        collected: false
+    });
 }
 
 function spawnObstacle() {
@@ -393,10 +511,50 @@ function spawnObstacle() {
     });
 }
 
+function createExplosion(x, y, color, count = 14) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x + blockSize / 2,
+            y: y + layerHeight / 2,
+            vx: (Math.random() - 0.5) * 360,
+            vy: (Math.random() - 0.5) * 360,
+            size: Math.random() * 6 + 3,
+            color: color,
+            alpha: 1,
+            life: 0.45
+        });
+    }
+}
+
+function createAddEffect(x, y) {
+    for (let i = 0; i < 4; i++) {
+        particles.push({
+            x: x + Math.random() * blockSize,
+            y: y + layerHeight,
+            vx: (Math.random() - 0.5) * 40,
+            vy: -Math.random() * 80 - 20,
+            size: 3,
+            color: '#38bdf8',
+            alpha: 0.9,
+            life: 0.3
+        });
+    }
+}
+
+// 飄浮拾取文字
+let floatTexts = [];
+function addFloatingText(x, y, text, color) {
+    floatTexts.push({ x, y, text, color, alpha: 1, vy: -50 });
+}
+
 function update(dt) {
     if (gameState !== 'PLAYING') return;
 
-    elapsedTime += dt;
+    // 瞄準模式時進入微時間緩速（子彈時間 0.25x），便於點擊精準爆破！
+    const timeScale = isAimingC4 ? 0.25 : 1.0;
+    const scaledDt = dt * timeScale;
+
+    elapsedTime += scaledDt;
     const config = DIFFICULTY_CONFIG[currentDifficulty];
     const currentSpeed = config.baseSpeed + elapsedTime * 2.2;
 
@@ -405,15 +563,52 @@ function update(dt) {
     timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
     scoreDisplay.textContent = score;
 
-    nextObstacleTime -= dt;
+    // 生成計時
+    nextObstacleTime -= scaledDt;
     if (nextObstacleTime <= 0) {
         spawnObstacle();
         nextObstacleTime = config.interval * (0.85 + Math.random() * 0.35);
     }
 
+    nextBonusTime -= scaledDt;
+    if (nextBonusTime <= 0) {
+        spawnBonusCube();
+        nextBonusTime = 6.0 + Math.random() * 4.0; // 每 6~10 秒隨機出現獎勵
+    }
+
+    const currentCoreLayer = Math.round(player.currentVisualBottom - player.cubeCount + 1);
+
+    // 1. 獎勵方塊判定 (核心或身體撞擊皆可獲取)
+    for (let i = bonusCubes.length - 1; i >= 0; i--) {
+        const bonus = bonusCubes[i];
+        bonus.x -= currentSpeed * scaledDt;
+
+        const isXOverlap = (player.x + blockSize > bonus.x && player.x < bonus.x + blockSize);
+        if (isXOverlap && !bonus.collected) {
+            // 檢查是否處在玩家的任一方塊層中
+            const playerBottomLayer = Math.round(player.currentVisualBottom);
+            if (bonus.layer >= currentCoreLayer && bonus.layer <= playerBottomLayer) {
+                bonus.collected = true;
+                if (bonus.type === 'C4') {
+                    c4Amount++;
+                    addFloatingText(bonus.x, bonus.layer * layerHeight, '+1 C4 💣', '#38bdf8');
+                } else {
+                    nukeAmount++;
+                    addFloatingText(bonus.x, bonus.layer * layerHeight, '+1 核彈 ☢️', '#f59e0b');
+                }
+                updateItemsUI();
+                createExplosion(bonus.x, bonus.layer * layerHeight, '#fbbf24', 18);
+            }
+        }
+
+        if (bonus.x < -blockSize * 2 || bonus.collected) {
+            bonusCubes.splice(i, 1);
+        }
+    }
+
+    // 2. 障礙物碰撞與削塊
     const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
-    const currentCoreLayer = Math.round(player.currentVisualBottom - player.cubeCount + 1);
 
     for (let i = 0; i < obstacles.length; i++) {
         const obs = obstacles[i];
@@ -422,16 +617,15 @@ function update(dt) {
         if (isXOverlap) {
             isCurrentlyOverlappingAnyObstacle = true;
 
-            // 唯一一次精確結算
             if (!obs.resolved) {
-                // 1. 核心碰撞 -> 死亡
+                // 核心碰撞 -> 死亡
                 if (obs.layers.has(currentCoreLayer)) {
                     createExplosion(player.x, currentCoreLayer * layerHeight, '#00f2fe');
                     gameOver();
                     return;
                 }
 
-                // 2. 身體碰撞判定
+                // 身體方塊被削掉
                 let highestHitObstacle = LAYERS;
                 for (let b = 1; b < player.cubeCount; b++) {
                     const checkLayer = currentCoreLayer + b;
@@ -441,7 +635,6 @@ function update(dt) {
                     }
                 }
 
-                // 削塊與位置重新錨定 (核心高度完全不動)
                 if (highestHitObstacle < LAYERS) {
                     const remainingCubes = highestHitObstacle - currentCoreLayer;
                     player.cubeCount = Math.max(1, remainingCubes);
@@ -463,17 +656,17 @@ function update(dt) {
             i--;
         }
 
-        obs.x -= currentSpeed * dt;
+        obs.x -= currentSpeed * scaledDt;
     }
 
-    // 離開障礙物後平穩向下墜落
+    // 3. 玩家平緩下墜
     if (!isCurrentlyOverlappingAnyObstacle) {
         if (player.hangTimer > 0) {
-            player.hangTimer -= dt;
+            player.hangTimer -= scaledDt;
         } else {
             const targetFloor = 9;
             if (player.currentVisualBottom < targetFloor) {
-                player.currentVisualBottom += player.dropSpeed * dt;
+                player.currentVisualBottom += player.dropSpeed * scaledDt;
                 if (player.currentVisualBottom > targetFloor) {
                     player.currentVisualBottom = targetFloor;
                 }
@@ -481,28 +674,100 @@ function update(dt) {
         }
     }
 
-    // 粒子更新
+    // 4. 浮空文字更新
+    for (let i = floatTexts.length - 1; i >= 0; i--) {
+        const ft = floatTexts[i];
+        ft.y += ft.vy * dt;
+        ft.alpha -= dt * 1.5;
+        if (ft.alpha <= 0) floatTexts.splice(i, 1);
+    }
+
+    // 5. 粒子更新
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.alpha -= dt / p.life;
-        if (p.alpha <= 0) {
-            particles.splice(i, 1);
-        }
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+
+    // 閃光衰減
+    if (flashAlpha > 0) flashAlpha = Math.max(0, flashAlpha - dt * 2.5);
+}
+
+function draw2DBlock(x, y, size, type, extraData) {
+    const pad = 1.5;
+    const bx = x + pad;
+    const by = y + pad;
+    const bs = size - pad * 2;
+
+    if (type === 'core') {
+        ctx.fillStyle = '#0ea5e9';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        ctx.fillStyle = '#ffffff';
+        const eyeSize = bs * 0.22;
+        ctx.fillRect(bx + bs * 0.6, by + bs * 0.28, eyeSize, eyeSize);
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(bx + bs * 0.68, by + bs * 0.32, eyeSize * 0.55, eyeSize * 0.55);
+
+    } else if (type === 'body') {
+        ctx.fillStyle = '#4f46e5';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#818cf8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fillRect(bx + bs * 0.25, by + bs * 0.25, bs * 0.5, bs * 0.5);
+
+    } else if (type === 'obstacle') {
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = isAimingC4 ? '#fef08a' : '#f87171'; // 瞄準時高亮
+        ctx.lineWidth = isAimingC4 ? 3 : 2;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const m = bs * 0.28;
+        ctx.moveTo(bx + m, by + m);
+        ctx.lineTo(bx + bs - m, by + bs - m);
+        ctx.moveTo(bx + bs - m, by + m);
+        ctx.lineTo(bx + m, by + bs - m);
+        ctx.stroke();
+
+    } else if (type === 'bonus') {
+        // 金色閃爍獎勵方塊
+        const glow = Math.sin(performance.now() * 0.008) * 0.2 + 0.8;
+        ctx.fillStyle = `rgba(245, 158, 11, ${glow})`;
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        // 標記星號 ★
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${bs * 0.55}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(extraData === 'C4' ? '💣' : '☢️', bx + bs / 2, by + bs / 2);
     }
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 繪製 10 等層背景跑道
+    // 1. 跑道背景
     for (let i = 0; i < LAYERS; i++) {
         const y = i * layerHeight;
         ctx.fillStyle = (i % 2 === 0) ? '#111c33' : '#0c1324';
         ctx.fillRect(0, y, canvas.width, layerHeight);
 
-        // 分割線
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -510,21 +775,24 @@ function draw() {
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
 
-        // 層數標記 (L1 ~ L10)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
         ctx.font = 'bold 11px monospace';
         ctx.fillText(`L${10 - i}`, 8, y + layerHeight * 0.6);
     }
 
-    // 2. 繪製 2D 障礙物方塊
+    // 2. 繪製獎勵方塊
+    bonusCubes.forEach(b => {
+        draw2DBlock(b.x, b.layer * layerHeight, blockSize, 'bonus', b.type);
+    });
+
+    // 3. 繪製障礙物
     obstacles.forEach(obs => {
         obs.layers.forEach(l => {
-            const y = l * layerHeight;
-            draw2DBlock(obs.x, y, blockSize, 'obstacle');
+            draw2DBlock(obs.x, l * layerHeight, blockSize, 'obstacle');
         });
     });
 
-    // 3. 繪製 2D 玩家方塊 (自底向上繪製)
+    // 4. 繪製玩家本體
     const visualBottomY = player.currentVisualBottom * layerHeight;
     for (let i = 0; i < player.cubeCount; i++) {
         const y = visualBottomY - (i * layerHeight);
@@ -532,7 +800,7 @@ function draw() {
         draw2DBlock(player.x, y, blockSize, isCore ? 'core' : 'body');
     }
 
-    // 4. 繪製粒子
+    // 5. 繪製粒子
     particles.forEach(p => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
@@ -540,10 +808,28 @@ function draw() {
         ctx.fillRect(p.x, p.y, p.size, p.size);
         ctx.restore();
     });
+
+    // 6. 浮動文字
+    floatTexts.forEach(ft => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+    });
+
+    // 7. 核彈白光衝擊
+    if (flashAlpha > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 function gameOver() {
     gameState = 'GAMEOVER';
+    isAimingC4 = false;
+    updateItemsUI();
     const mins = Math.floor(elapsedTime / 60);
     const secs = (elapsedTime % 60).toFixed(1);
     const timeStr = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
