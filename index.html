@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>立體方塊跑酷 - 10-Layer Cube Runner</title>
+    <title>立體方塊跑酷 - 2D精準版</title>
     <style>
         * {
             margin: 0;
@@ -29,10 +29,11 @@
             max-width: 900px;
             height: 100vh;
             max-height: 600px;
-            background: #111827;
+            background: #0f172a;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             border-radius: 12px;
             overflow: hidden;
+            border: 2px solid #1e293b;
         }
         canvas {
             display: block;
@@ -49,7 +50,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(11, 15, 25, 0.85);
+            background: rgba(11, 15, 25, 0.88);
             backdrop-filter: blur(8px);
             z-index: 10;
         }
@@ -157,10 +158,10 @@
     <div id="mobile-tip">空白鍵 (Space) 或 點擊螢幕增加方塊墊高</div>
 
     <div id="startOverlay" class="overlay">
-        <h1>立體 10 層跑酷</h1>
+        <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
-            畫面共 10 層！按<b>空白鍵</b>或<b>點擊螢幕</b>向上墊高。<br>
-            削掉身體方塊時本體安全平滑通過，絕不誤扣！
+            畫面精確分為 10 等層！按<b>空白鍵</b>或<b>點擊螢幕</b>向上墊高。<br>
+            撞擊障礙時底層方塊被削掉，核心安全滑過後平順掉落！
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -190,7 +191,7 @@ const gameOverStats = document.getElementById('gameOverStats');
 
 const LAYERS = 10;
 let layerHeight = 0;
-let blockWidth = 0;
+let blockSize = 0; // 2D 正方形大小
 
 let currentDifficulty = 'normal';
 const DIFFICULTY_CONFIG = {
@@ -204,12 +205,11 @@ let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
 
-// 玩家屬性
 const player = {
     x: 0,
-    currentVisualBottom: 9, // 當前底部平滑 Y 軸層數
+    currentVisualBottom: 9, // 當前底部的連續位置 (浮點數，支援平滑墜落)
     cubeCount: 1,           // 方塊數量 (1~10)
-    dropSpeed: 5.5,         // 下落速度 (層/秒)
+    dropSpeed: 6.0,         // 平順下墜速度 (層/秒)
     hangTimer: 0            // 滯空保護時間
 };
 
@@ -223,7 +223,7 @@ function resizeCanvas() {
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     layerHeight = canvas.height / LAYERS;
-    blockWidth = layerHeight * 1.05;
+    blockSize = layerHeight; // 純 2D 精準正方形
     player.x = canvas.width * 0.18;
 }
 window.addEventListener('resize', resizeCanvas);
@@ -256,18 +256,16 @@ function startGame() {
     gameState = 'PLAYING';
 }
 
-// 增加身體方塊操作
 function addPlayerCube() {
     if (gameState !== 'PLAYING') return;
     
-    // 計算當前頭部所在的層，若已經在第 0 層（頂天）則不能再加
+    // 當前頭部所在層
     const currentCoreLayer = player.currentVisualBottom - player.cubeCount + 1;
     if (currentCoreLayer <= 0.05 || player.cubeCount >= LAYERS) {
         return;
     }
 
     player.cubeCount++;
-    // 在頭部上方產生輕微推進粒子
     createAddEffect(player.x, (currentCoreLayer - 1) * layerHeight);
 }
 
@@ -289,56 +287,72 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-function drawIsometricCube(x, y, w, h, mainColor, topColor, sideColor, isHead = false) {
-    const depth = h * 0.28;
+// 繪製 2D 精準方塊
+function draw2DBlock(x, y, size, type) {
+    const pad = 1.5; // 邊界微縫隙，方便一眼看清方塊數量
+    const bx = x + pad;
+    const by = y + pad;
+    const bs = size - pad * 2;
 
-    // 右側面
-    ctx.fillStyle = sideColor;
-    ctx.beginPath();
-    ctx.moveTo(x + w, y);
-    ctx.lineTo(x + w + depth, y - depth);
-    ctx.lineTo(x + w + depth, y + h - depth);
-    ctx.lineTo(x + w, y + h);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    if (type === 'core') {
+        // 核心頭部：青藍色科技感
+        ctx.fillStyle = '#0ea5e9';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(bx, by, bs, bs);
 
-    // 頂面
-    ctx.fillStyle = topColor;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + depth, y - depth);
-    ctx.lineTo(x + w + depth, y - depth);
-    ctx.lineTo(x + w, y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // 正面
-    ctx.fillStyle = mainColor;
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeRect(x, y, w, h);
-
-    if (isHead) {
+        // 眼睛
         ctx.fillStyle = '#ffffff';
-        const eyeSize = w * 0.18;
-        ctx.fillRect(x + w * 0.65, y + h * 0.35, eyeSize, eyeSize);
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(x + w * 0.72, y + h * 0.38, eyeSize * 0.55, eyeSize * 0.55);
+        const eyeSize = bs * 0.22;
+        ctx.fillRect(bx + bs * 0.6, by + bs * 0.28, eyeSize, eyeSize);
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(bx + bs * 0.68, by + bs * 0.32, eyeSize * 0.55, eyeSize * 0.55);
+
+    } else if (type === 'body') {
+        // 身體方塊：深藍紫方格
+        ctx.fillStyle = '#4f46e5';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#818cf8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        // 內部裝飾方芯
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fillRect(bx + bs * 0.25, by + bs * 0.25, bs * 0.5, bs * 0.5);
+
+    } else if (type === 'obstacle') {
+        // 障礙方塊：鮮紅警告方塊
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(bx, by, bs, bs);
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bs, bs);
+
+        // 標記紅色「✕」符號
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const m = bs * 0.28;
+        ctx.moveTo(bx + m, by + m);
+        ctx.lineTo(bx + bs - m, by + bs - m);
+        ctx.moveTo(bx + bs - m, by + m);
+        ctx.lineTo(bx + m, by + bs - m);
+        ctx.stroke();
     }
 }
 
 function createExplosion(x, y, color) {
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 14; i++) {
         particles.push({
-            x: x + blockWidth / 2,
+            x: x + blockSize / 2,
             y: y + layerHeight / 2,
             vx: (Math.random() - 0.5) * 320,
             vy: (Math.random() - 0.5) * 320,
-            size: Math.random() * 6 + 4,
+            size: Math.random() * 5 + 3,
             color: color,
             alpha: 1,
-            life: 0.5
+            life: 0.45
         });
     }
 }
@@ -346,14 +360,14 @@ function createExplosion(x, y, color) {
 function createAddEffect(x, y) {
     for (let i = 0; i < 4; i++) {
         particles.push({
-            x: x + Math.random() * blockWidth,
+            x: x + Math.random() * blockSize,
             y: y + layerHeight,
-            vx: (Math.random() - 0.5) * 50,
-            vy: -Math.random() * 100 - 30,
+            vx: (Math.random() - 0.5) * 40,
+            vy: -Math.random() * 80 - 20,
             size: 3,
             color: '#38bdf8',
             alpha: 0.9,
-            life: 0.35
+            life: 0.3
         });
     }
 }
@@ -372,10 +386,10 @@ function spawnObstacle() {
 
     obstacles.push({
         id: ++obstacleIdCounter,
-        x: canvas.width + 50,
+        x: canvas.width + 20,
         layers: new Set(obstacleLayers),
         cleared: false,
-        resolved: false // 標記是否已進行過碰撞結算 (嚴格單次鎖定)
+        resolved: false
     });
 }
 
@@ -397,74 +411,54 @@ function update(dt) {
         nextObstacleTime = config.interval * (0.85 + Math.random() * 0.35);
     }
 
-    const hitPadding = 5;
+    const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
-
-    // 當前頭部核心所在的絕對層 (整數)
     const currentCoreLayer = Math.round(player.currentVisualBottom - player.cubeCount + 1);
 
     for (let i = 0; i < obstacles.length; i++) {
         const obs = obstacles[i];
-        const isXOverlap = (player.x + blockWidth - hitPadding > obs.x && player.x + hitPadding < obs.x + blockWidth);
+        const isXOverlap = (player.x + blockSize - hitPadding > obs.x && player.x + hitPadding < obs.x + blockSize);
 
         if (isXOverlap) {
             isCurrentlyOverlappingAnyObstacle = true;
 
-            // 嚴格單次結算：每一面障礙牆只在接觸時結算一次！
+            // 唯一一次精確結算
             if (!obs.resolved) {
-                // 1. 檢查核心頭部是否撞到 -> 立即死亡
+                // 1. 核心碰撞 -> 死亡
                 if (obs.layers.has(currentCoreLayer)) {
                     createExplosion(player.x, currentCoreLayer * layerHeight, '#00f2fe');
                     gameOver();
                     return;
                 }
 
-                // 2. 檢查身體方塊碰撞
-                // 找出被削掉的身體層數
-                let lowestSafeLayer = currentCoreLayer;
-                for (let b = 1; b < player.cubeCount; b++) {
-                    const checkLayer = currentCoreLayer + b;
-                    if (obs.layers.has(checkLayer)) {
-                        createExplosion(player.x, checkLayer * layerHeight, '#f43f5e');
-                    } else {
-                        // 若無障礙則可保留
-                        lowestSafeLayer = checkLayer;
-                    }
-                }
-
-                // 削塊核心邏輯：頭部以下遇到障礙的方塊全部削除
-                // 尋找撞擊點中最高的一層障礙物
+                // 2. 身體碰撞判定
                 let highestHitObstacle = LAYERS;
                 for (let b = 1; b < player.cubeCount; b++) {
                     const checkLayer = currentCoreLayer + b;
                     if (obs.layers.has(checkLayer)) {
+                        createExplosion(player.x, checkLayer * layerHeight, '#f43f5e');
                         highestHitObstacle = Math.min(highestHitObstacle, checkLayer);
                     }
                 }
 
+                // 削塊與位置重新錨定 (核心高度完全不動)
                 if (highestHitObstacle < LAYERS) {
-                    // 保留 highestHitObstacle 以上的方塊
                     const remainingCubes = highestHitObstacle - currentCoreLayer;
                     player.cubeCount = Math.max(1, remainingCubes);
-
-                    // 重要：保持核心 (currentCoreLayer) 高度絕對不變，重新錨定底部層數！
                     player.currentVisualBottom = currentCoreLayer + player.cubeCount - 1;
-                    player.hangTimer = 0.25; // 給予 0.25 秒滯空保護
+                    player.hangTimer = 0.25;
                 }
 
-                // 鎖定結算，本障礙牆絕不再扣方塊！
                 obs.resolved = true;
             }
         }
 
-        // 計分判定
-        if (!obs.cleared && obs.x + blockWidth < player.x) {
+        if (!obs.cleared && obs.x + blockSize < player.x) {
             obs.cleared = true;
             score++;
         }
 
-        // 移出螢幕清除
-        if (obs.x < -blockWidth * 2) {
+        if (obs.x < -blockSize * 2) {
             obstacles.splice(i, 1);
             i--;
         }
@@ -472,13 +466,11 @@ function update(dt) {
         obs.x -= currentSpeed * dt;
     }
 
-    // 垂直下墜物理判定：
-    // 若正在橫越任何障礙物，由障礙物托住，不往下掉
+    // 離開障礙物後平穩向下墜落
     if (!isCurrentlyOverlappingAnyObstacle) {
         if (player.hangTimer > 0) {
             player.hangTimer -= dt;
         } else {
-            // 平緩掉落回最底層 9
             const targetFloor = 9;
             if (player.currentVisualBottom < targetFloor) {
                 player.currentVisualBottom += player.dropSpeed * dt;
@@ -503,63 +495,41 @@ function update(dt) {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#0f172a';
 
-    // 1. 繪製 10 層跑道背景
+    // 1. 繪製 10 等層背景跑道
     for (let i = 0; i < LAYERS; i++) {
         const y = i * layerHeight;
-        ctx.fillStyle = (i % 2 === 0) ? '#131c31' : '#0f172a';
+        ctx.fillStyle = (i % 2 === 0) ? '#111c33' : '#0c1324';
         ctx.fillRect(0, y, canvas.width, layerHeight);
 
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        // 分割線
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.font = '10px monospace';
+        // 層數標記 (L1 ~ L10)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.font = 'bold 11px monospace';
         ctx.fillText(`L${10 - i}`, 8, y + layerHeight * 0.6);
     }
 
-    // 2. 繪製障礙物
+    // 2. 繪製 2D 障礙物方塊
     obstacles.forEach(obs => {
         obs.layers.forEach(l => {
             const y = l * layerHeight;
-            drawIsometricCube(
-                obs.x, y, blockWidth, layerHeight,
-                '#ef4444',
-                '#f87171',
-                '#991b1b',
-                false
-            );
+            draw2DBlock(obs.x, y, blockSize, 'obstacle');
         });
     });
 
-    // 3. 繪製玩家方塊 (自底向上繪製)
+    // 3. 繪製 2D 玩家方塊 (自底向上繪製)
     const visualBottomY = player.currentVisualBottom * layerHeight;
     for (let i = 0; i < player.cubeCount; i++) {
         const y = visualBottomY - (i * layerHeight);
         const isCore = (i === player.cubeCount - 1);
-
-        if (isCore) {
-            drawIsometricCube(
-                player.x, y, blockWidth, layerHeight,
-                '#0284c7',
-                '#38bdf8',
-                '#0369a1',
-                true
-            );
-        } else {
-            drawIsometricCube(
-                player.x, y, blockWidth, layerHeight,
-                '#4f46e5',
-                '#818cf8',
-                '#3730a3',
-                false
-            );
-        }
+        draw2DBlock(player.x, y, blockSize, isCore ? 'core' : 'body');
     }
 
     // 4. 繪製粒子
