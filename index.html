@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>立體方塊跑酷 - 翼龍來襲版</title>
+    <title>立體方塊跑酷 - 獵龍槍武裝版</title>
     <style>
         * {
             margin: 0;
@@ -58,7 +58,7 @@
             display: none;
         }
         h1 {
-            font-size: 2.5rem;
+            font-size: 2.3rem;
             margin-bottom: 8px;
             background: linear-gradient(135deg, #00f2fe, #4facfe);
             -webkit-background-clip: text;
@@ -68,10 +68,10 @@
         }
         p.subtitle {
             color: #94a3b8;
-            margin-bottom: 24px;
-            font-size: 0.95rem;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
             text-align: center;
-            max-width: 80%;
+            max-width: 85%;
             line-height: 1.5;
         }
         .btn-group {
@@ -83,8 +83,8 @@
             background: #1e293b;
             color: #e2e8f0;
             border: 2px solid #334155;
-            padding: 12px 24px;
-            font-size: 1rem;
+            padding: 10px 20px;
+            font-size: 0.95rem;
             font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
@@ -105,7 +105,7 @@
             background: linear-gradient(135deg, #0284c7, #2563eb);
             border: none;
             padding: 14px 40px;
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             font-weight: bold;
             color: white;
             border-radius: 30px;
@@ -147,9 +147,9 @@
             background: rgba(15, 23, 42, 0.85);
             border: 2px solid #334155;
             color: #f8fafc;
-            padding: 8px 18px;
+            padding: 7px 16px;
             border-radius: 20px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: bold;
             cursor: pointer;
             backdrop-filter: blur(4px);
@@ -175,11 +175,14 @@
         /* 道具欄 (右下角操作按鈕，含右側模式切換) */
         #item-bar {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 16px;
+            right: 16px;
             display: flex;
-            gap: 12px;
+            gap: 8px;
             z-index: 5;
+            max-width: 90%;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
         .item-btn {
             display: flex;
@@ -187,8 +190,8 @@
             background: rgba(15, 23, 42, 0.9);
             border: 2px solid #334155;
             color: #94a3b8;
-            border-radius: 12px;
-            font-size: 0.95rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
             font-weight: bold;
             backdrop-filter: blur(4px);
             transition: all 0.2s;
@@ -197,54 +200,58 @@
         .item-main-action {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
+            gap: 6px;
+            padding: 8px 10px;
             cursor: pointer;
             transition: background 0.2s;
         }
         .item-main-action:hover {
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.08);
         }
         .item-btn.has-item {
             border-color: #f59e0b;
             color: #f8fafc;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
         }
         .item-btn.nuke.has-item {
             border-color: #ef4444;
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+        }
+        .item-btn.gun.has-item {
+            border-color: #10b981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
         }
         .item-btn.aiming {
             border-color: #38bdf8;
             background: #0369a1;
             color: #ffffff;
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.8);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.8);
             animation: pulse 0.8s infinite alternate;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
-            100% { transform: scale(1.05); }
+            100% { transform: scale(1.04); }
         }
         .item-count {
             background: rgba(255, 255, 255, 0.15);
-            padding: 2px 7px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            padding: 2px 6px;
+            border-radius: 5px;
+            font-size: 0.8rem;
         }
 
         .mode-toggle {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px 10px;
-            font-size: 0.8rem;
+            padding: 8px 7px;
+            font-size: 0.75rem;
             font-weight: bold;
             border-left: 1px solid #334155;
             background: rgba(30, 41, 59, 0.7);
             color: #94a3b8;
             cursor: pointer;
             transition: all 0.2s;
-            min-width: 54px;
+            min-width: 44px;
         }
         .mode-toggle:hover {
             background: rgba(51, 65, 85, 0.9);
@@ -259,6 +266,10 @@
             background: #dc2626;
             box-shadow: inset 0 0 8px rgba(248, 113, 113, 0.6);
         }
+        .item-btn.gun .mode-toggle.auto {
+            background: #059669;
+            box-shadow: inset 0 0 8px rgba(52, 211, 153, 0.6);
+        }
 
         #aim-banner {
             position: absolute;
@@ -270,7 +281,7 @@
             padding: 8px 24px;
             border-radius: 20px;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.95rem;
             box-shadow: 0 0 20px rgba(2, 132, 199, 0.6);
             display: none;
             z-index: 6;
@@ -280,7 +291,7 @@
             position: absolute;
             bottom: 12px;
             left: 20px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #64748b;
             pointer-events: none;
         }
@@ -300,25 +311,39 @@
         <span id="pauseBtnText">⏸️ 暫停</span>
     </button>
 
-    <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！(翼龍免疫)</div>
+    <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！</div>
 
+    <!-- 道具欄區 (C4 / 核彈 / 槍) -->
     <div id="item-bar">
+        <!-- 1. C4 -->
         <div class="item-btn" id="btnC4">
             <div class="item-main-action" onclick="handleC4Click(event)">
                 <span>💣 C4 [1]</span>
                 <span class="item-count" id="c4Count">0</span>
             </div>
-            <div class="mode-toggle" id="c4ModeBtn" onclick="toggleC4Mode(event)" title="點擊切換 手動/自動觸發">
+            <div class="mode-toggle" id="c4ModeBtn" onclick="toggleC4Mode(event)" title="點擊切換 手動/自動">
                 手動
             </div>
         </div>
 
+        <!-- 2. 核彈 -->
         <div class="item-btn nuke" id="btnNuke">
             <div class="item-main-action" onclick="handleNukeClick(event)">
                 <span>☢️ 核彈 [2]</span>
                 <span class="item-count" id="nukeCount">0</span>
             </div>
-            <div class="mode-toggle" id="nukeModeBtn" onclick="toggleNukeMode(event)" title="點擊切換 手動/自動觸發">
+            <div class="mode-toggle" id="nukeModeBtn" onclick="toggleNukeMode(event)" title="點擊切換 手動/自動">
+                手動
+            </div>
+        </div>
+
+        <!-- 3. 槍 (新增) -->
+        <div class="item-btn gun" id="btnGun">
+            <div class="item-main-action" onclick="handleGunClick(event)">
+                <span>🔫 槍 [3]</span>
+                <span class="item-count" id="gunCount">0</span>
+            </div>
+            <div class="mode-toggle" id="gunModeBtn" onclick="toggleGunMode(event)" title="點擊切換 手動/自動">
                 手動
             </div>
         </div>
@@ -326,12 +351,14 @@
 
     <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高 | P 鍵暫停</div>
 
+    <!-- 起始畫面 -->
     <div id="startOverlay" class="overlay">
         <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
-            🦖 <b>警報：空中出現翼龍！</b><br>
-            翼龍具有神秘防護罩，<b>無法被 C4 或核彈消滅</b>，必須靠操控高度躲避！<br>
-            撞擊<b>金色獎勵方塊★</b>可獲取道具。
+            撞擊<b>金色問號方塊「？」</b>依機率抽取裝備：<br>
+            <b>[C4: 20]</b> 炸毀指定障礙 | <b>[核彈: 10]</b> 炸平整列障礙<br>
+            <b>[槍: 3]</b> 專門狙殺免疫爆炸的翼龍！<br>
+            各道具右側均支援<b>【自動觸發模式】</b>！
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -342,6 +369,7 @@
         <button class="start-btn" onclick="startGame()">開始遊戲</button>
     </div>
 
+    <!-- 結算畫面 -->
     <div id="gameOverOverlay" class="overlay hidden">
         <h1 style="background: linear-gradient(135deg, #ff416c, #ff4b2b); -webkit-background-clip: text;">挑戰結束</h1>
         <p class="subtitle" id="gameOverStats">存活時間：00:00.0 | 通過障礙：0</p>
@@ -358,12 +386,18 @@ const scoreDisplay = document.getElementById('scoreDisplay');
 const startOverlay = document.getElementById('startOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const gameOverStats = document.getElementById('gameOverStats');
+
+// 道具 UI DOM
 const c4CountDisplay = document.getElementById('c4Count');
 const nukeCountDisplay = document.getElementById('nukeCount');
+const gunCountDisplay = document.getElementById('gunCount');
 const btnC4 = document.getElementById('btnC4');
 const btnNuke = document.getElementById('btnNuke');
+const btnGun = document.getElementById('btnGun');
 const c4ModeBtn = document.getElementById('c4ModeBtn');
 const nukeModeBtn = document.getElementById('nukeModeBtn');
+const gunModeBtn = document.getElementById('gunModeBtn');
+
 const aimBanner = document.getElementById('aim-banner');
 const pauseBtn = document.getElementById('pauseBtn');
 const pauseBtnText = document.getElementById('pauseBtnText');
@@ -385,11 +419,33 @@ let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
 
+// 道具數量與模式
 let c4Amount = 0;
 let nukeAmount = 0;
+let gunAmount = 0;
 let c4Mode = 'manual';
 let nukeMode = 'manual';
+let gunMode = 'manual';
 let isAimingC4 = false;
+
+// 機率權重設定：[C4: 20], [核彈: 10], [槍: 3]
+const ITEM_WEIGHTS = {
+    C4: 20,
+    NUKE: 10,
+    GUN: 3
+};
+const TOTAL_WEIGHT = ITEM_WEIGHTS.C4 + ITEM_WEIGHTS.NUKE + ITEM_WEIGHTS.GUN; // 33
+
+function rollRandomItem() {
+    const rand = Math.random() * TOTAL_WEIGHT;
+    if (rand < ITEM_WEIGHTS.C4) {
+        return 'C4';
+    } else if (rand < ITEM_WEIGHTS.C4 + ITEM_WEIGHTS.NUKE) {
+        return 'NUKE';
+    } else {
+        return 'GUN';
+    }
+}
 
 const player = {
     x: 0,
@@ -401,11 +457,12 @@ const player = {
 
 let obstacles = [];
 let bonusCubes = [];
-let pterodactyls = []; // 翼龍怪物集合
+let pterodactyls = [];
+let bullets = []; // 開槍射擊彈道線
 let particles = [];
 let nextObstacleTime = 0;
 let nextBonusTime = 0;
-let nextPteroTime = 0; // 下一隻翼龍生成計時
+let nextPteroTime = 0;
 let lastFrameTime = 0;
 let flashAlpha = 0;
 
@@ -432,8 +489,12 @@ function selectDifficulty(diff) {
 function updateItemsUI() {
     c4CountDisplay.textContent = c4Amount;
     nukeCountDisplay.textContent = nukeAmount;
+    gunCountDisplay.textContent = gunAmount;
+
     btnC4.classList.toggle('has-item', c4Amount > 0);
     btnNuke.classList.toggle('has-item', nukeAmount > 0);
+    btnGun.classList.toggle('has-item', gunAmount > 0);
+
     btnC4.classList.toggle('aiming', isAimingC4);
     aimBanner.style.display = isAimingC4 ? 'block' : 'none';
 
@@ -442,8 +503,12 @@ function updateItemsUI() {
 
     nukeModeBtn.textContent = (nukeMode === 'auto') ? '自動' : '手動';
     nukeModeBtn.classList.toggle('auto', nukeMode === 'auto');
+
+    gunModeBtn.textContent = (gunMode === 'auto') ? '自動' : '手動';
+    gunModeBtn.classList.toggle('auto', gunMode === 'auto');
 }
 
+// 模式切換
 function toggleC4Mode(e) {
     if (e) e.stopPropagation();
     c4Mode = (c4Mode === 'manual') ? 'auto' : 'manual';
@@ -457,6 +522,13 @@ function toggleNukeMode(e) {
     updateItemsUI();
 }
 
+function toggleGunMode(e) {
+    if (e) e.stopPropagation();
+    gunMode = (gunMode === 'manual') ? 'auto' : 'manual';
+    updateItemsUI();
+}
+
+// 點擊 C4
 function handleC4Click(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING' || isPaused || c4Amount <= 0) return;
@@ -468,13 +540,78 @@ function handleC4Click(e) {
     }
 }
 
+// 點擊核彈
 function handleNukeClick(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING' || isPaused || nukeAmount <= 0) return;
     executeNukeBlast();
 }
 
-// 執行核彈爆炸 (翼龍完全免疫！)
+// 點擊槍 (狙殺前方翼龍)
+function handleGunClick(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING' || isPaused || gunAmount <= 0) return;
+    executeGunShot();
+}
+
+// 執行開槍擊殺翼龍核心邏輯
+function executeGunShot() {
+    if (gunAmount <= 0) return false;
+
+    // 尋找在玩家前方最近的翼龍
+    let targetPtero = null;
+    let minDistance = Infinity;
+    for (let p of pterodactyls) {
+        if (p.x + blockSize > player.x && p.x < minDistance) {
+            minDistance = p.x;
+            targetPtero = p;
+        }
+    }
+
+    if (targetPtero) {
+        gunAmount--;
+        updateItemsUI();
+
+        // 產生開火光束
+        const currentCoreY = (player.currentVisualBottom - player.cubeCount + 1 + 0.5) * layerHeight;
+        const targetY = (targetPtero.layer + 0.5) * layerHeight;
+        bullets.push({
+            x1: player.x + blockSize,
+            y1: currentCoreY,
+            x2: targetPtero.x + blockSize * 0.5,
+            y2: targetY,
+            alpha: 1.0
+        });
+
+        // 翼龍被擊中炸裂
+        createExplosion(targetPtero.x, targetPtero.layer * layerHeight, '#10b981', 25);
+        createExplosion(targetPtero.x, targetPtero.layer * layerHeight, '#c084fc', 20);
+        addFloatingText(targetPtero.x, targetPtero.layer * layerHeight, '🎯 翼龍已擊斃!', '#34d399');
+
+        targetPtero.resolved = true;
+        const idx = pterodactyls.indexOf(targetPtero);
+        if (idx !== -1) pterodactyls.splice(idx, 1);
+
+        return true;
+    } else {
+        addFloatingText(player.x, 80, '⚠️ 前方無翼龍!', '#94a3b8');
+        return false;
+    }
+}
+
+// 槍自動狙擊
+function triggerGunAuto() {
+    if (gunAmount <= 0) return false;
+    for (let p of pterodactyls) {
+        // 當翼龍進入前方危險射程 (距離玩家 6.5 格內)
+        if (p.x > player.x && p.x - player.x < blockSize * 6.5) {
+            return executeGunShot();
+        }
+    }
+    return false;
+}
+
+// 執行核彈爆炸
 function executeNukeBlast() {
     let targetIndex = -1;
     let minDistance = Infinity;
@@ -498,7 +635,7 @@ function executeNukeBlast() {
         score++;
         flashAlpha = 0.85;
 
-        // 若場上有翼龍，彈出免疫文字
+        // 翼龍免疫核彈
         pterodactyls.forEach(p => {
             if (p.x > 0 && p.x < canvas.width) {
                 addFloatingText(p.x, p.layer * layerHeight, '🛡️ 翼龍免疫核彈!', '#c084fc');
@@ -510,7 +647,7 @@ function executeNukeBlast() {
     return false;
 }
 
-// C4 自動鎖定 (自動忽略翼龍)
+// C4 自動鎖定
 function triggerC4Auto() {
     if (c4Amount <= 0) return false;
 
@@ -607,6 +744,7 @@ function startGame() {
     obstacles = [];
     bonusCubes = [];
     pterodactyls = [];
+    bullets = [];
     particles = [];
     score = 0;
     elapsedTime = 0;
@@ -614,13 +752,14 @@ function startGame() {
     
     c4Amount = 1;
     nukeAmount = 0;
+    gunAmount = 0;
     isAimingC4 = false;
     updateItemsUI();
 
     lastFrameTime = performance.now();
     nextObstacleTime = 1.2;
-    nextBonusTime = 3.5;
-    nextPteroTime = 4.0; // 4 秒後迎來第一隻翼龍
+    nextBonusTime = 3.2;
+    nextPteroTime = 4.0;
     gameState = 'PLAYING';
 }
 
@@ -633,7 +772,7 @@ function addPlayerCube() {
     createAddEffect(player.x, (currentCoreLayer - 1) * layerHeight);
 }
 
-// 點擊畫布
+// 點擊畫布事件 (支援開槍點殺翼龍 & C4 點擊引爆)
 canvas.addEventListener('pointerdown', (e) => {
     if (gameState !== 'PLAYING' || isPaused) return;
 
@@ -642,15 +781,22 @@ canvas.addEventListener('pointerdown', (e) => {
     const clickY = e.clientY - rect.top;
     const clickedLayer = Math.floor(clickY / layerHeight);
 
-    // 檢查是否點擊到了翼龍 (不可被 C4 清除)
-    for (let p of pterodactyls) {
+    // 1. 檢查是否直接點擊了翼龍
+    for (let i = 0; i < pterodactyls.length; i++) {
+        const p = pterodactyls[i];
         if (clickX >= p.x && clickX <= p.x + blockSize * 1.2 && p.layer === clickedLayer) {
-            addFloatingText(p.x, p.layer * layerHeight, '🛡️ 翼龍免疫 C4!', '#c084fc');
-            return;
+            if (gunAmount > 0) {
+                // 有槍，直接消耗 1 發將其擊殺！
+                executeGunShot();
+                return;
+            } else {
+                addFloatingText(p.x, p.layer * layerHeight, '🛡️ 需使用「槍」擊殺!', '#c084fc');
+                return;
+            }
         }
     }
 
-    // 檢查點擊紅色障礙物
+    // 2. 檢查點擊紅色障礙物
     let hitObstacle = false;
     for (let i = 0; i < obstacles.length; i++) {
         const obs = obstacles[i];
@@ -675,7 +821,7 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-// 鍵盤監聽
+// 鍵盤監聽 (支援 1, 2, 3 與 Shift+1, Shift+2, Shift+3)
 window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' || e.code === 'Escape') {
         e.preventDefault();
@@ -685,10 +831,13 @@ window.addEventListener('keydown', (e) => {
 
     if (isPaused) return;
 
+    // 快捷鍵切換模式
     if (e.shiftKey && (e.code === 'Digit1' || e.code === 'KeyC')) {
         toggleC4Mode();
     } else if (e.shiftKey && (e.code === 'Digit2' || e.code === 'KeyN')) {
         toggleNukeMode();
+    } else if (e.shiftKey && (e.code === 'Digit3' || e.code === 'KeyG')) {
+        toggleGunMode();
     } else if (e.code === 'Space') {
         e.preventDefault();
         if (gameState === 'PLAYING') {
@@ -701,27 +850,28 @@ window.addEventListener('keydown', (e) => {
         handleC4Click();
     } else if (e.code === 'Digit2' || e.code === 'KeyN') {
         handleNukeClick();
+    } else if (e.code === 'Digit3' || e.code === 'KeyG') {
+        handleGunClick();
     }
 });
 
+// 生成問號獎勵方塊
 function spawnBonusCube() {
     const layer = Math.floor(Math.random() * LAYERS);
     bonusCubes.push({
         x: canvas.width + 30,
         layer: layer,
-        type: Math.random() < 0.65 ? 'C4' : 'NUKE',
         collected: false
     });
 }
 
-// 生成翼龍 (隨機在 1~8 層飛行，避開最頂層與最底層，保證有高低落差躲避空間)
 function spawnPterodactyl() {
     const possibleLayers = [1, 2, 3, 4, 5, 6, 7, 8];
     const layer = possibleLayers[Math.floor(Math.random() * possibleLayers.length)];
     pterodactyls.push({
         x: canvas.width + 40,
         layer: layer,
-        speedBonus: 40 + Math.random() * 30, // 稍微比普通障礙物快一些
+        speedBonus: 40 + Math.random() * 30,
         wingTimer: 0,
         wingUp: true,
         cleared: false,
@@ -800,28 +950,25 @@ function update(dt) {
     timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
     scoreDisplay.textContent = score;
 
-    // 障礙生成
     nextObstacleTime -= scaledDt;
     if (nextObstacleTime <= 0) {
         spawnObstacle();
         nextObstacleTime = config.interval * (0.85 + Math.random() * 0.35);
     }
 
-    // 獎勵方塊生成
     nextBonusTime -= scaledDt;
     if (nextBonusTime <= 0) {
         spawnBonusCube();
-        nextBonusTime = 6.0 + Math.random() * 4.0;
+        nextBonusTime = 5.5 + Math.random() * 4.0;
     }
 
-    // 翼龍生成計時 (約每 7~11 秒出現一隻)
     nextPteroTime -= scaledDt;
     if (nextPteroTime <= 0) {
         spawnPterodactyl();
-        nextPteroTime = 7.5 + Math.random() * 4.0;
+        nextPteroTime = 7.0 + Math.random() * 4.0;
     }
 
-    // 自動模式檢查
+    // 自動模式判定
     if (nukeMode === 'auto' && nukeAmount > 0) {
         for (let i = 0; i < obstacles.length; i++) {
             const obs = obstacles[i];
@@ -837,7 +984,11 @@ function update(dt) {
         triggerC4Auto();
     }
 
-    // 1. 獎勵方塊
+    if (gunMode === 'auto' && gunAmount > 0) {
+        triggerGunAuto();
+    }
+
+    // 1. 獎勵方塊撞擊與機率抽取
     for (let i = bonusCubes.length - 1; i >= 0; i--) {
         const bonus = bonusCubes[i];
         bonus.x -= currentSpeed * scaledDt;
@@ -852,13 +1003,21 @@ function update(dt) {
                 const pBoxBottom = (player.currentVisualBottom - idx + 1) * layerHeight;
                 if (Math.min(pBoxBottom, bonusBottomY) - Math.max(pBoxTop, bonusTopY) > 5) {
                     bonus.collected = true;
-                    if (bonus.type === 'C4') {
+
+                    // 依照權重抽取：[C4: 20], [核彈: 10], [槍: 3]
+                    const awardedItem = rollRandomItem();
+
+                    if (awardedItem === 'C4') {
                         c4Amount++;
                         addFloatingText(bonus.x, bonus.layer * layerHeight, '+1 C4 💣', '#38bdf8');
-                    } else {
+                    } else if (awardedItem === 'NUKE') {
                         nukeAmount++;
                         addFloatingText(bonus.x, bonus.layer * layerHeight, '+1 核彈 ☢️', '#f59e0b');
+                    } else if (awardedItem === 'GUN') {
+                        gunAmount++;
+                        addFloatingText(bonus.x, bonus.layer * layerHeight, '+1 獵龍槍 🔫 (稀有!)', '#34d399');
                     }
+
                     updateItemsUI();
                     createExplosion(bonus.x, bonus.layer * layerHeight, '#fbbf24', 18);
                     break;
@@ -871,12 +1030,11 @@ function update(dt) {
         }
     }
 
-    // 2. 翼龍更新與碰撞判定 (振翅動畫、不可被道具清除)
+    // 2. 翼龍更新
     for (let i = pterodactyls.length - 1; i >= 0; i--) {
         const p = pterodactyls[i];
         p.x -= (currentSpeed + p.speedBonus) * scaledDt;
 
-        // 翅膀拍打動畫切換 (每 0.15 秒拍一次)
         p.wingTimer += scaledDt;
         if (p.wingTimer > 0.15) {
             p.wingUp = !p.wingUp;
@@ -918,7 +1076,7 @@ function update(dt) {
             if (hitBodyIdx !== -1) {
                 const py = (player.currentVisualBottom - hitBodyIdx) * layerHeight;
                 createExplosion(player.x, py, '#f43f5e', 20);
-                createExplosion(p.x, py, '#c084fc', 20); // 翼龍撞毀粒子
+                createExplosion(p.x, py, '#c084fc', 20);
 
                 player.cubeCount = Math.max(1, player.cubeCount - 1);
                 player.currentVisualBottom -= 1;
@@ -940,7 +1098,7 @@ function update(dt) {
         }
     }
 
-    // 3. 障礙物碰撞與點對點精確消塊
+    // 3. 障礙物碰撞
     const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
 
@@ -1032,7 +1190,14 @@ function update(dt) {
         }
     }
 
-    // 5. 文字與粒子
+    // 5. 射擊彈道更新
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.alpha -= dt * 4.0;
+        if (b.alpha <= 0) bullets.splice(i, 1);
+    }
+
+    // 6. 文字與粒子
     for (let i = floatTexts.length - 1; i >= 0; i--) {
         const ft = floatTexts[i];
         ft.y += ft.vy * dt;
@@ -1051,32 +1216,27 @@ function update(dt) {
     if (flashAlpha > 0) flashAlpha = Math.max(0, flashAlpha - dt * 2.5);
 }
 
-// 繪製 Google Dino 風格的翼龍
+// 繪製翼龍
 function drawPterodactyl(x, y, size, wingUp) {
     ctx.save();
     ctx.translate(x, y);
 
-    // 紫色免疫光環 (護盾)
     ctx.strokeStyle = 'rgba(192, 132, 252, 0.7)';
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
     ctx.strokeRect(-2, -2, size * 1.15, size + 4);
     ctx.setLineDash([]);
 
-    ctx.fillStyle = '#e2e8f0'; // 經典像素灰白配色
+    ctx.fillStyle = '#e2e8f0';
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 1.5;
 
     const w = size;
     const h = size;
 
-    // 1. 身體 (Body)
-    ctx.beginPath();
     ctx.fillRect(w * 0.35, h * 0.42, w * 0.35, h * 0.22);
-
-    // 2. 頭部與尖喙 (Head & Beak) - 朝向左方飛行
     ctx.fillRect(w * 0.12, h * 0.36, w * 0.25, h * 0.18);
-    // 尖喙
+
     ctx.beginPath();
     ctx.moveTo(w * 0.12, h * 0.45);
     ctx.lineTo(w * 0.0, h * 0.5);
@@ -1084,7 +1244,6 @@ function drawPterodactyl(x, y, size, wingUp) {
     ctx.closePath();
     ctx.fill();
 
-    // 3. 後頭冠 (Crest)
     ctx.beginPath();
     ctx.moveTo(w * 0.35, h * 0.36);
     ctx.lineTo(w * 0.55, h * 0.25);
@@ -1092,21 +1251,17 @@ function drawPterodactyl(x, y, size, wingUp) {
     ctx.closePath();
     ctx.fill();
 
-    // 4. 眼睛
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(w * 0.18, h * 0.38, w * 0.06, h * 0.06);
     ctx.fillStyle = '#e2e8f0';
 
-    // 5. 拍動的翅膀 (Wing Up vs Wing Down)
     ctx.beginPath();
     if (wingUp) {
-        // 翅膀往上拍
         ctx.moveTo(w * 0.4, h * 0.42);
         ctx.lineTo(w * 0.45, h * 0.05);
         ctx.lineTo(w * 0.65, h * 0.15);
         ctx.lineTo(w * 0.58, h * 0.42);
     } else {
-        // 翅膀往下拍
         ctx.moveTo(w * 0.4, h * 0.55);
         ctx.lineTo(w * 0.48, h * 0.95);
         ctx.lineTo(w * 0.68, h * 0.82);
@@ -1115,13 +1270,12 @@ function drawPterodactyl(x, y, size, wingUp) {
     ctx.closePath();
     ctx.fill();
 
-    // 6. 尾部羽翼
     ctx.fillRect(w * 0.7, h * 0.46, w * 0.18, h * 0.12);
 
     ctx.restore();
 }
 
-function draw2DBlock(x, y, size, type, extraData) {
+function draw2DBlock(x, y, size, type) {
     const pad = 1.5;
     const bx = x + pad;
     const by = y + pad;
@@ -1168,6 +1322,7 @@ function draw2DBlock(x, y, size, type, extraData) {
         ctx.stroke();
 
     } else if (type === 'bonus') {
+        // 金色閃爍問號獎勵方塊
         const glow = Math.sin(performance.now() * 0.008) * 0.2 + 0.8;
         ctx.fillStyle = `rgba(245, 158, 11, ${glow})`;
         ctx.fillRect(bx, by, bs, bs);
@@ -1176,10 +1331,10 @@ function draw2DBlock(x, y, size, type, extraData) {
         ctx.strokeRect(bx, by, bs, bs);
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${bs * 0.55}px sans-serif`;
+        ctx.font = `bold ${bs * 0.65}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(extraData === 'C4' ? '💣' : '☢️', bx + bs / 2, by + bs / 2);
+        ctx.fillText('？', bx + bs / 2, by + bs / 2);
     }
 }
 
@@ -1204,9 +1359,9 @@ function draw() {
         ctx.fillText(`L${10 - i}`, 8, y + layerHeight * 0.6);
     }
 
-    // 2. 獎勵方塊
+    // 2. 問號獎勵方塊
     bonusCubes.forEach(b => {
-        draw2DBlock(b.x, b.layer * layerHeight, blockSize, 'bonus', b.type);
+        draw2DBlock(b.x, b.layer * layerHeight, blockSize, 'bonus');
     });
 
     // 3. 障礙物方塊
@@ -1229,7 +1384,22 @@ function draw() {
         draw2DBlock(player.x, y, blockSize, isCore ? 'core' : 'body');
     }
 
-    // 6. 粒子
+    // 6. 射擊穿甲光束
+    bullets.forEach(b => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, b.alpha);
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(b.x1, b.y1);
+        ctx.lineTo(b.x2, b.y2);
+        ctx.stroke();
+        ctx.restore();
+    });
+
+    // 7. 粒子
     particles.forEach(p => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
@@ -1238,23 +1408,23 @@ function draw() {
         ctx.restore();
     });
 
-    // 7. 浮動文字
+    // 8. 浮動文字
     floatTexts.forEach(ft => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, ft.alpha);
         ctx.fillStyle = ft.color;
-        ctx.font = 'bold 16px sans-serif';
+        ctx.font = 'bold 15px sans-serif';
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
     });
 
-    // 8. 核彈白光
+    // 9. 核彈白光
     if (flashAlpha > 0) {
         ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 9. 暫停畫面覆蓋
+    // 10. 暫停畫面覆蓋
     if (isPaused) {
         ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
