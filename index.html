@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>立體方塊跑酷 - 道具自動控制版</title>
+    <title>立體方塊跑酷 - 翼龍來襲版</title>
     <style>
         * {
             margin: 0;
@@ -232,7 +232,6 @@
             font-size: 0.85rem;
         }
 
-        /* 道具按鈕內右側的模式切換開關 */
         .mode-toggle {
             display: flex;
             align-items: center;
@@ -292,23 +291,18 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
-    <!-- 左上角時間與過關數 -->
     <div id="hud">
         <div class="hud-item">時間：<span id="timeDisplay">00:00.0</span></div>
         <div class="hud-item">過關數：<span id="scoreDisplay">0</span></div>
     </div>
 
-    <!-- 右上角暫停/繼續按鈕 -->
     <button id="pauseBtn" class="hidden" onclick="togglePause(event)">
         <span id="pauseBtnText">⏸️ 暫停</span>
     </button>
 
-    <!-- C4 瞄準提示 -->
-    <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！</div>
+    <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！(翼龍免疫)</div>
 
-    <!-- 道具按鈕區 (右側含模式切換開關) -->
     <div id="item-bar">
-        <!-- C4 組合按鈕 -->
         <div class="item-btn" id="btnC4">
             <div class="item-main-action" onclick="handleC4Click(event)">
                 <span>💣 C4 [1]</span>
@@ -319,7 +313,6 @@
             </div>
         </div>
 
-        <!-- 核彈 組合按鈕 -->
         <div class="item-btn nuke" id="btnNuke">
             <div class="item-main-action" onclick="handleNukeClick(event)">
                 <span>☢️ 核彈 [2]</span>
@@ -333,12 +326,12 @@
 
     <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高 | P 鍵暫停</div>
 
-    <!-- 起始畫面 -->
     <div id="startOverlay" class="overlay">
         <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
-            精準判定機制：<b>沒撞到障礙物的方塊絕對不被消除！</b><br>
-            道具按鈕右側可切換<b>【手動】</b>或<b>【自動觸發】</b>模式。
+            🦖 <b>警報：空中出現翼龍！</b><br>
+            翼龍具有神秘防護罩，<b>無法被 C4 或核彈消滅</b>，必須靠操控高度躲避！<br>
+            撞擊<b>金色獎勵方塊★</b>可獲取道具。
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -349,7 +342,6 @@
         <button class="start-btn" onclick="startGame()">開始遊戲</button>
     </div>
 
-    <!-- 結算畫面 -->
     <div id="gameOverOverlay" class="overlay hidden">
         <h1 style="background: linear-gradient(135deg, #ff416c, #ff4b2b); -webkit-background-clip: text;">挑戰結束</h1>
         <p class="subtitle" id="gameOverStats">存活時間：00:00.0 | 通過障礙：0</p>
@@ -393,7 +385,6 @@ let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
 
-// 道具數量與模式 ('manual' 或 'auto')
 let c4Amount = 0;
 let nukeAmount = 0;
 let c4Mode = 'manual';
@@ -410,9 +401,11 @@ const player = {
 
 let obstacles = [];
 let bonusCubes = [];
+let pterodactyls = []; // 翼龍怪物集合
 let particles = [];
 let nextObstacleTime = 0;
 let nextBonusTime = 0;
+let nextPteroTime = 0; // 下一隻翼龍生成計時
 let lastFrameTime = 0;
 let flashAlpha = 0;
 
@@ -444,7 +437,6 @@ function updateItemsUI() {
     btnC4.classList.toggle('aiming', isAimingC4);
     aimBanner.style.display = isAimingC4 ? 'block' : 'none';
 
-    // 模式切換按鈕狀態
     c4ModeBtn.textContent = (c4Mode === 'auto') ? '自動' : '手動';
     c4ModeBtn.classList.toggle('auto', c4Mode === 'auto');
 
@@ -452,29 +444,23 @@ function updateItemsUI() {
     nukeModeBtn.classList.toggle('auto', nukeMode === 'auto');
 }
 
-// 切換 C4 模式
 function toggleC4Mode(e) {
     if (e) e.stopPropagation();
     c4Mode = (c4Mode === 'manual') ? 'auto' : 'manual';
-    if (c4Mode === 'auto' && isAimingC4) {
-        isAimingC4 = false;
-    }
+    if (c4Mode === 'auto' && isAimingC4) isAimingC4 = false;
     updateItemsUI();
 }
 
-// 切換核彈模式
 function toggleNukeMode(e) {
     if (e) e.stopPropagation();
     nukeMode = (nukeMode === 'manual') ? 'auto' : 'manual';
     updateItemsUI();
 }
 
-// 點擊 C4 主體
 function handleC4Click(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING' || isPaused || c4Amount <= 0) return;
     if (c4Mode === 'auto') {
-        // 若在自動模式下點擊，直接強制觸發一次對前方障礙物的爆破
         triggerC4Auto();
     } else {
         isAimingC4 = !isAimingC4;
@@ -482,14 +468,13 @@ function handleC4Click(e) {
     }
 }
 
-// 點擊核彈主體
 function handleNukeClick(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING' || isPaused || nukeAmount <= 0) return;
     executeNukeBlast();
 }
 
-// 執行核彈爆炸核心動作
+// 執行核彈爆炸 (翼龍完全免疫！)
 function executeNukeBlast() {
     let targetIndex = -1;
     let minDistance = Infinity;
@@ -512,16 +497,23 @@ function executeNukeBlast() {
         obstacles.splice(targetIndex, 1);
         score++;
         flashAlpha = 0.85;
+
+        // 若場上有翼龍，彈出免疫文字
+        pterodactyls.forEach(p => {
+            if (p.x > 0 && p.x < canvas.width) {
+                addFloatingText(p.x, p.layer * layerHeight, '🛡️ 翼龍免疫核彈!', '#c084fc');
+            }
+        });
+
         return true;
     }
     return false;
 }
 
-// C4 自動智能尋敵爆破 (優先炸掉對玩家頭部與身體構成致命威脅的格子)
+// C4 自動鎖定 (自動忽略翼龍)
 function triggerC4Auto() {
     if (c4Amount <= 0) return false;
 
-    // 尋找前方最近的一堵障礙
     let closestObs = null;
     let minDistance = Infinity;
     for (let i = 0; i < obstacles.length; i++) {
@@ -533,13 +525,10 @@ function triggerC4Auto() {
     }
 
     if (!closestObs || closestObs.layers.size === 0) return false;
-
-    // 判定危險距離 (靠近玩家 4.5 格內)
     if (closestObs.x - player.x > blockSize * 4.5) return false;
 
     const currentCoreLayer = Math.round(player.currentVisualBottom - player.cubeCount + 1);
 
-    // 優先策略 1: 炸掉正對核心頭部的致命障礙
     if (closestObs.layers.has(currentCoreLayer)) {
         closestObs.layers.delete(currentCoreLayer);
         c4Amount--;
@@ -549,7 +538,6 @@ function triggerC4Auto() {
         return true;
     }
 
-    // 優先策略 2: 炸掉擋住身體的任一障礙
     for (let b = 1; b < player.cubeCount; b++) {
         const bodyLayer = currentCoreLayer + b;
         if (closestObs.layers.has(bodyLayer)) {
@@ -562,7 +550,6 @@ function triggerC4Auto() {
         }
     }
 
-    // 若未直接擋住但有障礙，自動炸掉最接近玩家核心高度的障礙
     let chosenLayer = null;
     let minLayerDiff = Infinity;
     for (let l of closestObs.layers) {
@@ -585,7 +572,6 @@ function triggerC4Auto() {
     return false;
 }
 
-// 暫停切換
 function togglePause(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING') return;
@@ -620,6 +606,7 @@ function startGame() {
     
     obstacles = [];
     bonusCubes = [];
+    pterodactyls = [];
     particles = [];
     score = 0;
     elapsedTime = 0;
@@ -633,6 +620,7 @@ function startGame() {
     lastFrameTime = performance.now();
     nextObstacleTime = 1.2;
     nextBonusTime = 3.5;
+    nextPteroTime = 4.0; // 4 秒後迎來第一隻翼龍
     gameState = 'PLAYING';
 }
 
@@ -645,7 +633,7 @@ function addPlayerCube() {
     createAddEffect(player.x, (currentCoreLayer - 1) * layerHeight);
 }
 
-// 點擊畫布事件
+// 點擊畫布
 canvas.addEventListener('pointerdown', (e) => {
     if (gameState !== 'PLAYING' || isPaused) return;
 
@@ -654,6 +642,15 @@ canvas.addEventListener('pointerdown', (e) => {
     const clickY = e.clientY - rect.top;
     const clickedLayer = Math.floor(clickY / layerHeight);
 
+    // 檢查是否點擊到了翼龍 (不可被 C4 清除)
+    for (let p of pterodactyls) {
+        if (clickX >= p.x && clickX <= p.x + blockSize * 1.2 && p.layer === clickedLayer) {
+            addFloatingText(p.x, p.layer * layerHeight, '🛡️ 翼龍免疫 C4!', '#c084fc');
+            return;
+        }
+    }
+
+    // 檢查點擊紅色障礙物
     let hitObstacle = false;
     for (let i = 0; i < obstacles.length; i++) {
         const obs = obstacles[i];
@@ -678,7 +675,7 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-// 鍵盤監聽 (含快捷切換模式 Shift+1, Shift+2)
+// 鍵盤監聽
 window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' || e.code === 'Escape') {
         e.preventDefault();
@@ -714,6 +711,21 @@ function spawnBonusCube() {
         layer: layer,
         type: Math.random() < 0.65 ? 'C4' : 'NUKE',
         collected: false
+    });
+}
+
+// 生成翼龍 (隨機在 1~8 層飛行，避開最頂層與最底層，保證有高低落差躲避空間)
+function spawnPterodactyl() {
+    const possibleLayers = [1, 2, 3, 4, 5, 6, 7, 8];
+    const layer = possibleLayers[Math.floor(Math.random() * possibleLayers.length)];
+    pterodactyls.push({
+        x: canvas.width + 40,
+        layer: layer,
+        speedBonus: 40 + Math.random() * 30, // 稍微比普通障礙物快一些
+        wingTimer: 0,
+        wingUp: true,
+        cleared: false,
+        resolved: false
     });
 }
 
@@ -788,24 +800,31 @@ function update(dt) {
     timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
     scoreDisplay.textContent = score;
 
+    // 障礙生成
     nextObstacleTime -= scaledDt;
     if (nextObstacleTime <= 0) {
         spawnObstacle();
         nextObstacleTime = config.interval * (0.85 + Math.random() * 0.35);
     }
 
+    // 獎勵方塊生成
     nextBonusTime -= scaledDt;
     if (nextBonusTime <= 0) {
         spawnBonusCube();
         nextBonusTime = 6.0 + Math.random() * 4.0;
     }
 
-    // 🤖 自動觸發模式監聽
-    // 1. 核彈自動發射：前方有逼近中的障礙物時自動釋放
+    // 翼龍生成計時 (約每 7~11 秒出現一隻)
+    nextPteroTime -= scaledDt;
+    if (nextPteroTime <= 0) {
+        spawnPterodactyl();
+        nextPteroTime = 7.5 + Math.random() * 4.0;
+    }
+
+    // 自動模式檢查
     if (nukeMode === 'auto' && nukeAmount > 0) {
         for (let i = 0; i < obstacles.length; i++) {
             const obs = obstacles[i];
-            // 當障礙物進入前方危險射程 (距離玩家 5.5 格內)
             if (obs.x > player.x && obs.x - player.x < blockSize * 5.5) {
                 addFloatingText(player.x, 80, '☢️ 核彈自動觸發!', '#f59e0b');
                 executeNukeBlast();
@@ -814,12 +833,11 @@ function update(dt) {
         }
     }
 
-    // 2. C4 自動精確爆破：威脅逼近時自動炸毀致命障礙格
     if (c4Mode === 'auto' && c4Amount > 0) {
         triggerC4Auto();
     }
 
-    // 獎勵方塊收集
+    // 1. 獎勵方塊
     for (let i = bonusCubes.length - 1; i >= 0; i--) {
         const bonus = bonusCubes[i];
         bonus.x -= currentSpeed * scaledDt;
@@ -853,7 +871,76 @@ function update(dt) {
         }
     }
 
-    // 障礙物碰撞與點對點精確消塊
+    // 2. 翼龍更新與碰撞判定 (振翅動畫、不可被道具清除)
+    for (let i = pterodactyls.length - 1; i >= 0; i--) {
+        const p = pterodactyls[i];
+        p.x -= (currentSpeed + p.speedBonus) * scaledDt;
+
+        // 翅膀拍打動畫切換 (每 0.15 秒拍一次)
+        p.wingTimer += scaledDt;
+        if (p.wingTimer > 0.15) {
+            p.wingUp = !p.wingUp;
+            p.wingTimer = 0;
+        }
+
+        const hitPadding = 4;
+        const isXOverlap = (player.x + blockSize - hitPadding > p.x && player.x + hitPadding < p.x + blockSize * 1.1);
+
+        if (isXOverlap && !p.resolved) {
+            const pTopY = p.layer * layerHeight;
+            const pBottomY = (p.layer + 1) * layerHeight;
+
+            let coreHit = false;
+            let hitBodyIdx = -1;
+
+            for (let idx = 0; idx < player.cubeCount; idx++) {
+                const isCore = (idx === player.cubeCount - 1);
+                const pBoxTop = (player.currentVisualBottom - idx) * layerHeight;
+                const pBoxBottom = (player.currentVisualBottom - idx + 1) * layerHeight;
+
+                if (Math.min(pBoxBottom, pBottomY) - Math.max(pBoxTop, pTopY) > 6) {
+                    if (isCore) {
+                        coreHit = true;
+                        break;
+                    } else {
+                        hitBodyIdx = idx;
+                    }
+                }
+            }
+
+            if (coreHit) {
+                const coreY = (player.currentVisualBottom - (player.cubeCount - 1)) * layerHeight;
+                createExplosion(player.x, coreY, '#00f2fe');
+                gameOver();
+                return;
+            }
+
+            if (hitBodyIdx !== -1) {
+                const py = (player.currentVisualBottom - hitBodyIdx) * layerHeight;
+                createExplosion(player.x, py, '#f43f5e', 20);
+                createExplosion(p.x, py, '#c084fc', 20); // 翼龍撞毀粒子
+
+                player.cubeCount = Math.max(1, player.cubeCount - 1);
+                player.currentVisualBottom -= 1;
+                player.hangTimer = 0.25;
+
+                p.resolved = true;
+                pterodactyls.splice(i, 1);
+                continue;
+            }
+        }
+
+        if (!p.cleared && p.x + blockSize < player.x) {
+            p.cleared = true;
+            score++;
+        }
+
+        if (p.x < -blockSize * 2) {
+            pterodactyls.splice(i, 1);
+        }
+    }
+
+    // 3. 障礙物碰撞與點對點精確消塊
     const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
 
@@ -930,7 +1017,7 @@ function update(dt) {
         obs.x -= currentSpeed * scaledDt;
     }
 
-    // 離開障礙物後平穩向下墜落
+    // 4. 下墜
     if (!isCurrentlyOverlappingAnyObstacle) {
         if (player.hangTimer > 0) {
             player.hangTimer -= scaledDt;
@@ -945,7 +1032,7 @@ function update(dt) {
         }
     }
 
-    // 文字與粒子更新
+    // 5. 文字與粒子
     for (let i = floatTexts.length - 1; i >= 0; i--) {
         const ft = floatTexts[i];
         ft.y += ft.vy * dt;
@@ -962,6 +1049,76 @@ function update(dt) {
     }
 
     if (flashAlpha > 0) flashAlpha = Math.max(0, flashAlpha - dt * 2.5);
+}
+
+// 繪製 Google Dino 風格的翼龍
+function drawPterodactyl(x, y, size, wingUp) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    // 紫色免疫光環 (護盾)
+    ctx.strokeStyle = 'rgba(192, 132, 252, 0.7)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(-2, -2, size * 1.15, size + 4);
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#e2e8f0'; // 經典像素灰白配色
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+
+    const w = size;
+    const h = size;
+
+    // 1. 身體 (Body)
+    ctx.beginPath();
+    ctx.fillRect(w * 0.35, h * 0.42, w * 0.35, h * 0.22);
+
+    // 2. 頭部與尖喙 (Head & Beak) - 朝向左方飛行
+    ctx.fillRect(w * 0.12, h * 0.36, w * 0.25, h * 0.18);
+    // 尖喙
+    ctx.beginPath();
+    ctx.moveTo(w * 0.12, h * 0.45);
+    ctx.lineTo(w * 0.0, h * 0.5);
+    ctx.lineTo(w * 0.12, h * 0.54);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. 後頭冠 (Crest)
+    ctx.beginPath();
+    ctx.moveTo(w * 0.35, h * 0.36);
+    ctx.lineTo(w * 0.55, h * 0.25);
+    ctx.lineTo(w * 0.35, h * 0.45);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. 眼睛
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(w * 0.18, h * 0.38, w * 0.06, h * 0.06);
+    ctx.fillStyle = '#e2e8f0';
+
+    // 5. 拍動的翅膀 (Wing Up vs Wing Down)
+    ctx.beginPath();
+    if (wingUp) {
+        // 翅膀往上拍
+        ctx.moveTo(w * 0.4, h * 0.42);
+        ctx.lineTo(w * 0.45, h * 0.05);
+        ctx.lineTo(w * 0.65, h * 0.15);
+        ctx.lineTo(w * 0.58, h * 0.42);
+    } else {
+        // 翅膀往下拍
+        ctx.moveTo(w * 0.4, h * 0.55);
+        ctx.lineTo(w * 0.48, h * 0.95);
+        ctx.lineTo(w * 0.68, h * 0.82);
+        ctx.lineTo(w * 0.6, h * 0.55);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 6. 尾部羽翼
+    ctx.fillRect(w * 0.7, h * 0.46, w * 0.18, h * 0.12);
+
+    ctx.restore();
 }
 
 function draw2DBlock(x, y, size, type, extraData) {
@@ -1059,7 +1216,12 @@ function draw() {
         });
     });
 
-    // 4. 玩家方塊
+    // 4. 翼龍怪物
+    pterodactyls.forEach(p => {
+        drawPterodactyl(p.x, p.layer * layerHeight, blockSize, p.wingUp);
+    });
+
+    // 5. 玩家方塊
     const visualBottomY = player.currentVisualBottom * layerHeight;
     for (let i = 0; i < player.cubeCount; i++) {
         const y = visualBottomY - (i * layerHeight);
@@ -1067,7 +1229,7 @@ function draw() {
         draw2DBlock(player.x, y, blockSize, isCore ? 'core' : 'body');
     }
 
-    // 5. 粒子
+    // 6. 粒子
     particles.forEach(p => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
@@ -1076,7 +1238,7 @@ function draw() {
         ctx.restore();
     });
 
-    // 6. 浮動文字
+    // 7. 浮動文字
     floatTexts.forEach(ft => {
         ctx.save();
         ctx.globalAlpha = Math.max(0, ft.alpha);
@@ -1086,13 +1248,13 @@ function draw() {
         ctx.restore();
     });
 
-    // 7. 核彈全螢幕白光
+    // 8. 核彈白光
     if (flashAlpha > 0) {
         ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 8. 暫停畫面覆蓋標記
+    // 9. 暫停畫面覆蓋
     if (isPaused) {
         ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
