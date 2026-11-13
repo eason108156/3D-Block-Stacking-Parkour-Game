@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>立體方塊跑酷 - 道具強化精準版</title>
+    <title>立體方塊跑酷 - 道具自動控制版</title>
     <style>
         * {
             margin: 0;
@@ -172,7 +172,7 @@
             display: none;
         }
 
-        /* 道具欄 (右下角操作按鈕) */
+        /* 道具欄 (右下角操作按鈕，含右側模式切換) */
         #item-bar {
             position: absolute;
             bottom: 20px;
@@ -184,17 +184,26 @@
         .item-btn {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.9);
             border: 2px solid #334155;
             color: #94a3b8;
-            padding: 10px 16px;
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: bold;
-            cursor: pointer;
             backdrop-filter: blur(4px);
             transition: all 0.2s;
+            overflow: hidden;
+        }
+        .item-main-action {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .item-main-action:hover {
+            background: rgba(255, 255, 255, 0.06);
         }
         .item-btn.has-item {
             border-color: #f59e0b;
@@ -214,17 +223,44 @@
         }
         @keyframes pulse {
             0% { transform: scale(1); }
-            100% { transform: scale(1.08); }
-        }
-        .item-btn:active {
-            transform: scale(0.95);
+            100% { transform: scale(1.05); }
         }
         .item-count {
             background: rgba(255, 255, 255, 0.15);
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 0.85rem;
         }
+
+        /* 道具按鈕內右側的模式切換開關 */
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-left: 1px solid #334155;
+            background: rgba(30, 41, 59, 0.7);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 54px;
+        }
+        .mode-toggle:hover {
+            background: rgba(51, 65, 85, 0.9);
+            color: #ffffff;
+        }
+        .mode-toggle.auto {
+            background: #0284c7;
+            color: #ffffff;
+            box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.6);
+        }
+        .item-btn.nuke .mode-toggle.auto {
+            background: #dc2626;
+            box-shadow: inset 0 0 8px rgba(248, 113, 113, 0.6);
+        }
+
         #aim-banner {
             position: absolute;
             top: 20px;
@@ -270,16 +306,29 @@
     <!-- C4 瞄準提示 -->
     <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！</div>
 
-    <!-- 道具按鈕區 -->
+    <!-- 道具按鈕區 (右側含模式切換開關) -->
     <div id="item-bar">
-        <button class="item-btn" id="btnC4" onclick="toggleC4Aim(event)">
-            <span>💣 C4 [1]</span>
-            <span class="item-count" id="c4Count">0</span>
-        </button>
-        <button class="item-btn nuke" id="btnNuke" onclick="useNuke(event)">
-            <span>☢️ 核彈 [2]</span>
-            <span class="item-count" id="nukeCount">0</span>
-        </button>
+        <!-- C4 組合按鈕 -->
+        <div class="item-btn" id="btnC4">
+            <div class="item-main-action" onclick="handleC4Click(event)">
+                <span>💣 C4 [1]</span>
+                <span class="item-count" id="c4Count">0</span>
+            </div>
+            <div class="mode-toggle" id="c4ModeBtn" onclick="toggleC4Mode(event)" title="點擊切換 手動/自動觸發">
+                手動
+            </div>
+        </div>
+
+        <!-- 核彈 組合按鈕 -->
+        <div class="item-btn nuke" id="btnNuke">
+            <div class="item-main-action" onclick="handleNukeClick(event)">
+                <span>☢️ 核彈 [2]</span>
+                <span class="item-count" id="nukeCount">0</span>
+            </div>
+            <div class="mode-toggle" id="nukeModeBtn" onclick="toggleNukeMode(event)" title="點擊切換 手動/自動觸發">
+                手動
+            </div>
+        </div>
     </div>
 
     <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高 | P 鍵暫停</div>
@@ -289,7 +338,7 @@
         <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
             精準判定機制：<b>沒撞到障礙物的方塊絕對不被消除！</b><br>
-            撞擊<b>金色獎勵方塊★</b>獲取 C4 與核彈道具。
+            道具按鈕右側可切換<b>【手動】</b>或<b>【自動觸發】</b>模式。
         </p>
         <div style="margin-bottom: 8px; color: #cbd5e1; font-size: 0.9rem;">請選擇遊戲難度：</div>
         <div class="btn-group">
@@ -321,6 +370,8 @@ const c4CountDisplay = document.getElementById('c4Count');
 const nukeCountDisplay = document.getElementById('nukeCount');
 const btnC4 = document.getElementById('btnC4');
 const btnNuke = document.getElementById('btnNuke');
+const c4ModeBtn = document.getElementById('c4ModeBtn');
+const nukeModeBtn = document.getElementById('nukeModeBtn');
 const aimBanner = document.getElementById('aim-banner');
 const pauseBtn = document.getElementById('pauseBtn');
 const pauseBtnText = document.getElementById('pauseBtnText');
@@ -337,13 +388,16 @@ const DIFFICULTY_CONFIG = {
 };
 
 let gameState = 'MENU';
-let isPaused = false; // 暫停狀態
+let isPaused = false;
 let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
 
+// 道具數量與模式 ('manual' 或 'auto')
 let c4Amount = 0;
 let nukeAmount = 0;
+let c4Mode = 'manual';
+let nukeMode = 'manual';
 let isAimingC4 = false;
 
 const player = {
@@ -389,9 +443,149 @@ function updateItemsUI() {
     btnNuke.classList.toggle('has-item', nukeAmount > 0);
     btnC4.classList.toggle('aiming', isAimingC4);
     aimBanner.style.display = isAimingC4 ? 'block' : 'none';
+
+    // 模式切換按鈕狀態
+    c4ModeBtn.textContent = (c4Mode === 'auto') ? '自動' : '手動';
+    c4ModeBtn.classList.toggle('auto', c4Mode === 'auto');
+
+    nukeModeBtn.textContent = (nukeMode === 'auto') ? '自動' : '手動';
+    nukeModeBtn.classList.toggle('auto', nukeMode === 'auto');
 }
 
-// 暫停切換邏輯
+// 切換 C4 模式
+function toggleC4Mode(e) {
+    if (e) e.stopPropagation();
+    c4Mode = (c4Mode === 'manual') ? 'auto' : 'manual';
+    if (c4Mode === 'auto' && isAimingC4) {
+        isAimingC4 = false;
+    }
+    updateItemsUI();
+}
+
+// 切換核彈模式
+function toggleNukeMode(e) {
+    if (e) e.stopPropagation();
+    nukeMode = (nukeMode === 'manual') ? 'auto' : 'manual';
+    updateItemsUI();
+}
+
+// 點擊 C4 主體
+function handleC4Click(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING' || isPaused || c4Amount <= 0) return;
+    if (c4Mode === 'auto') {
+        // 若在自動模式下點擊，直接強制觸發一次對前方障礙物的爆破
+        triggerC4Auto();
+    } else {
+        isAimingC4 = !isAimingC4;
+        updateItemsUI();
+    }
+}
+
+// 點擊核彈主體
+function handleNukeClick(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING' || isPaused || nukeAmount <= 0) return;
+    executeNukeBlast();
+}
+
+// 執行核彈爆炸核心動作
+function executeNukeBlast() {
+    let targetIndex = -1;
+    let minDistance = Infinity;
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        if (obs.x + blockSize > player.x && obs.x < minDistance) {
+            minDistance = obs.x;
+            targetIndex = i;
+        }
+    }
+
+    if (targetIndex !== -1) {
+        nukeAmount--;
+        updateItemsUI();
+
+        const targetObs = obstacles[targetIndex];
+        targetObs.layers.forEach(layer => {
+            createExplosion(targetObs.x, layer * layerHeight, '#f59e0b', 24);
+        });
+        obstacles.splice(targetIndex, 1);
+        score++;
+        flashAlpha = 0.85;
+        return true;
+    }
+    return false;
+}
+
+// C4 自動智能尋敵爆破 (優先炸掉對玩家頭部與身體構成致命威脅的格子)
+function triggerC4Auto() {
+    if (c4Amount <= 0) return false;
+
+    // 尋找前方最近的一堵障礙
+    let closestObs = null;
+    let minDistance = Infinity;
+    for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        if (obs.x + blockSize > player.x && obs.x < minDistance) {
+            minDistance = obs.x;
+            closestObs = obs;
+        }
+    }
+
+    if (!closestObs || closestObs.layers.size === 0) return false;
+
+    // 判定危險距離 (靠近玩家 4.5 格內)
+    if (closestObs.x - player.x > blockSize * 4.5) return false;
+
+    const currentCoreLayer = Math.round(player.currentVisualBottom - player.cubeCount + 1);
+
+    // 優先策略 1: 炸掉正對核心頭部的致命障礙
+    if (closestObs.layers.has(currentCoreLayer)) {
+        closestObs.layers.delete(currentCoreLayer);
+        c4Amount--;
+        createExplosion(closestObs.x, currentCoreLayer * layerHeight, '#38bdf8', 25);
+        addFloatingText(closestObs.x, currentCoreLayer * layerHeight, '💣 C4 自動攔截!', '#38bdf8');
+        updateItemsUI();
+        return true;
+    }
+
+    // 優先策略 2: 炸掉擋住身體的任一障礙
+    for (let b = 1; b < player.cubeCount; b++) {
+        const bodyLayer = currentCoreLayer + b;
+        if (closestObs.layers.has(bodyLayer)) {
+            closestObs.layers.delete(bodyLayer);
+            c4Amount--;
+            createExplosion(closestObs.x, bodyLayer * layerHeight, '#38bdf8', 25);
+            addFloatingText(closestObs.x, bodyLayer * layerHeight, '💣 C4 自動破壞!', '#38bdf8');
+            updateItemsUI();
+            return true;
+        }
+    }
+
+    // 若未直接擋住但有障礙，自動炸掉最接近玩家核心高度的障礙
+    let chosenLayer = null;
+    let minLayerDiff = Infinity;
+    for (let l of closestObs.layers) {
+        const diff = Math.abs(l - currentCoreLayer);
+        if (diff < minLayerDiff) {
+            minLayerDiff = diff;
+            chosenLayer = l;
+        }
+    }
+
+    if (chosenLayer !== null) {
+        closestObs.layers.delete(chosenLayer);
+        c4Amount--;
+        createExplosion(closestObs.x, chosenLayer * layerHeight, '#38bdf8', 25);
+        addFloatingText(closestObs.x, chosenLayer * layerHeight, '💣 C4 自動破壞!', '#38bdf8');
+        updateItemsUI();
+        return true;
+    }
+
+    return false;
+}
+
+// 暫停切換
 function togglePause(e) {
     if (e) e.stopPropagation();
     if (gameState !== 'PLAYING') return;
@@ -408,7 +602,7 @@ function togglePause(e) {
     } else {
         pauseBtnText.textContent = '⏸️ 暫停';
         pauseBtn.classList.remove('paused');
-        lastFrameTime = performance.now(); // 防止恢復時跳幀
+        lastFrameTime = performance.now();
     }
 }
 
@@ -451,42 +645,7 @@ function addPlayerCube() {
     createAddEffect(player.x, (currentCoreLayer - 1) * layerHeight);
 }
 
-function toggleC4Aim(e) {
-    if (e) e.stopPropagation();
-    if (gameState !== 'PLAYING' || isPaused || c4Amount <= 0) return;
-    isAimingC4 = !isAimingC4;
-    updateItemsUI();
-}
-
-function useNuke(e) {
-    if (e) e.stopPropagation();
-    if (gameState !== 'PLAYING' || isPaused || nukeAmount <= 0) return;
-
-    let targetIndex = -1;
-    let minDistance = Infinity;
-    for (let i = 0; i < obstacles.length; i++) {
-        const obs = obstacles[i];
-        if (obs.x + blockSize > player.x && obs.x < minDistance) {
-            minDistance = obs.x;
-            targetIndex = i;
-        }
-    }
-
-    if (targetIndex !== -1) {
-        nukeAmount--;
-        updateItemsUI();
-
-        const targetObs = obstacles[targetIndex];
-        targetObs.layers.forEach(layer => {
-            createExplosion(targetObs.x, layer * layerHeight, '#f59e0b', 24);
-        });
-        obstacles.splice(targetIndex, 1);
-        score++;
-        flashAlpha = 0.85;
-    }
-}
-
-// 點擊事件監聽
+// 點擊畫布事件
 canvas.addEventListener('pointerdown', (e) => {
     if (gameState !== 'PLAYING' || isPaused) return;
 
@@ -519,7 +678,7 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
-// 鍵盤監聽
+// 鍵盤監聽 (含快捷切換模式 Shift+1, Shift+2)
 window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' || e.code === 'Escape') {
         e.preventDefault();
@@ -527,9 +686,13 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (isPaused) return; // 暫停時鎖定其餘按鍵操作
+    if (isPaused) return;
 
-    if (e.code === 'Space') {
+    if (e.shiftKey && (e.code === 'Digit1' || e.code === 'KeyC')) {
+        toggleC4Mode();
+    } else if (e.shiftKey && (e.code === 'Digit2' || e.code === 'KeyN')) {
+        toggleNukeMode();
+    } else if (e.code === 'Space') {
         e.preventDefault();
         if (gameState === 'PLAYING') {
             if (isAimingC4) isAimingC4 = false;
@@ -538,9 +701,9 @@ window.addEventListener('keydown', (e) => {
             startGame();
         }
     } else if (e.code === 'Digit1' || e.code === 'KeyC') {
-        toggleC4Aim();
+        handleC4Click();
     } else if (e.code === 'Digit2' || e.code === 'KeyN') {
-        useNuke();
+        handleNukeClick();
     }
 });
 
@@ -637,7 +800,26 @@ function update(dt) {
         nextBonusTime = 6.0 + Math.random() * 4.0;
     }
 
-    // 1. 獎勵方塊收集
+    // 🤖 自動觸發模式監聽
+    // 1. 核彈自動發射：前方有逼近中的障礙物時自動釋放
+    if (nukeMode === 'auto' && nukeAmount > 0) {
+        for (let i = 0; i < obstacles.length; i++) {
+            const obs = obstacles[i];
+            // 當障礙物進入前方危險射程 (距離玩家 5.5 格內)
+            if (obs.x > player.x && obs.x - player.x < blockSize * 5.5) {
+                addFloatingText(player.x, 80, '☢️ 核彈自動觸發!', '#f59e0b');
+                executeNukeBlast();
+                break;
+            }
+        }
+    }
+
+    // 2. C4 自動精確爆破：威脅逼近時自動炸毀致命障礙格
+    if (c4Mode === 'auto' && c4Amount > 0) {
+        triggerC4Auto();
+    }
+
+    // 獎勵方塊收集
     for (let i = bonusCubes.length - 1; i >= 0; i--) {
         const bonus = bonusCubes[i];
         bonus.x -= currentSpeed * scaledDt;
@@ -671,7 +853,7 @@ function update(dt) {
         }
     }
 
-    // 2. 障礙物碰撞與點對點精確消塊
+    // 障礙物碰撞與點對點精確消塊
     const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
 
@@ -748,7 +930,7 @@ function update(dt) {
         obs.x -= currentSpeed * scaledDt;
     }
 
-    // 3. 離開障礙物後平穩向下墜落
+    // 離開障礙物後平穩向下墜落
     if (!isCurrentlyOverlappingAnyObstacle) {
         if (player.hangTimer > 0) {
             player.hangTimer -= scaledDt;
@@ -763,7 +945,7 @@ function update(dt) {
         }
     }
 
-    // 4. 文字與粒子更新
+    // 文字與粒子更新
     for (let i = floatTexts.length - 1; i >= 0; i--) {
         const ft = floatTexts[i];
         ft.y += ft.vy * dt;
