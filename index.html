@@ -117,6 +117,8 @@
             transform: scale(1.05);
             box-shadow: 0 6px 25px rgba(37, 99, 235, 0.7);
         }
+
+        /* 左上角 HUD */
         #hud {
             position: absolute;
             top: 15px;
@@ -136,6 +138,41 @@
             color: #38bdf8;
         }
 
+        /* 右上角暫停按鈕 */
+        #pauseBtn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            z-index: 12;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #334155;
+            color: #f8fafc;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #pauseBtn:hover {
+            border-color: #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+            transform: scale(1.03);
+        }
+        #pauseBtn.paused {
+            background: #0284c7;
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.7);
+        }
+        #pauseBtn.hidden {
+            display: none;
+        }
+
+        /* 道具欄 (右下角操作按鈕) */
         #item-bar {
             position: absolute;
             bottom: 20px;
@@ -219,13 +256,21 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
+    <!-- 左上角時間與過關數 -->
     <div id="hud">
         <div class="hud-item">時間：<span id="timeDisplay">00:00.0</span></div>
         <div class="hud-item">過關數：<span id="scoreDisplay">0</span></div>
     </div>
 
+    <!-- 右上角暫停/繼續按鈕 -->
+    <button id="pauseBtn" class="hidden" onclick="togglePause(event)">
+        <span id="pauseBtnText">⏸️ 暫停</span>
+    </button>
+
+    <!-- C4 瞄準提示 -->
     <div id="aim-banner">💣 點擊任意紅色障礙物將其引爆！</div>
 
+    <!-- 道具按鈕區 -->
     <div id="item-bar">
         <button class="item-btn" id="btnC4" onclick="toggleC4Aim(event)">
             <span>💣 C4 [1]</span>
@@ -237,8 +282,9 @@
         </button>
     </div>
 
-    <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高方塊</div>
+    <div id="mobile-tip">空白鍵 (Space) 或 點擊墊高 | P 鍵暫停</div>
 
+    <!-- 起始畫面 -->
     <div id="startOverlay" class="overlay">
         <h1>2D 精準分層跑酷</h1>
         <p class="subtitle">
@@ -254,6 +300,7 @@
         <button class="start-btn" onclick="startGame()">開始遊戲</button>
     </div>
 
+    <!-- 結算畫面 -->
     <div id="gameOverOverlay" class="overlay hidden">
         <h1 style="background: linear-gradient(135deg, #ff416c, #ff4b2b); -webkit-background-clip: text;">挑戰結束</h1>
         <p class="subtitle" id="gameOverStats">存活時間：00:00.0 | 通過障礙：0</p>
@@ -275,6 +322,8 @@ const nukeCountDisplay = document.getElementById('nukeCount');
 const btnC4 = document.getElementById('btnC4');
 const btnNuke = document.getElementById('btnNuke');
 const aimBanner = document.getElementById('aim-banner');
+const pauseBtn = document.getElementById('pauseBtn');
+const pauseBtnText = document.getElementById('pauseBtnText');
 
 const LAYERS = 10;
 let layerHeight = 0;
@@ -288,6 +337,7 @@ const DIFFICULTY_CONFIG = {
 };
 
 let gameState = 'MENU';
+let isPaused = false; // 暫停狀態
 let elapsedTime = 0;
 let score = 0;
 let obstacleIdCounter = 0;
@@ -298,8 +348,8 @@ let isAimingC4 = false;
 
 const player = {
     x: 0,
-    currentVisualBottom: 9, // 當前底部的 Y 軸層數 (浮點數)
-    cubeCount: 1,           // 當前方塊數量
+    currentVisualBottom: 9,
+    cubeCount: 1,
     dropSpeed: 6.0,
     hangTimer: 0
 };
@@ -341,10 +391,35 @@ function updateItemsUI() {
     aimBanner.style.display = isAimingC4 ? 'block' : 'none';
 }
 
+// 暫停切換邏輯
+function togglePause(e) {
+    if (e) e.stopPropagation();
+    if (gameState !== 'PLAYING') return;
+
+    isPaused = !isPaused;
+
+    if (isPaused) {
+        pauseBtnText.textContent = '▶️ 繼續';
+        pauseBtn.classList.add('paused');
+        if (isAimingC4) {
+            isAimingC4 = false;
+            updateItemsUI();
+        }
+    } else {
+        pauseBtnText.textContent = '⏸️ 暫停';
+        pauseBtn.classList.remove('paused');
+        lastFrameTime = performance.now(); // 防止恢復時跳幀
+    }
+}
+
 function startGame() {
     startOverlay.classList.add('hidden');
     gameOverOverlay.classList.add('hidden');
     
+    isPaused = false;
+    pauseBtn.classList.remove('hidden', 'paused');
+    pauseBtnText.textContent = '⏸️ 暫停';
+
     player.cubeCount = 1;
     player.currentVisualBottom = 9;
     player.hangTimer = 0;
@@ -368,7 +443,7 @@ function startGame() {
 }
 
 function addPlayerCube() {
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING' || isPaused) return;
     const currentCoreLayer = player.currentVisualBottom - player.cubeCount + 1;
     if (currentCoreLayer <= 0.05 || player.cubeCount >= LAYERS) return;
 
@@ -378,14 +453,14 @@ function addPlayerCube() {
 
 function toggleC4Aim(e) {
     if (e) e.stopPropagation();
-    if (gameState !== 'PLAYING' || c4Amount <= 0) return;
+    if (gameState !== 'PLAYING' || isPaused || c4Amount <= 0) return;
     isAimingC4 = !isAimingC4;
     updateItemsUI();
 }
 
 function useNuke(e) {
     if (e) e.stopPropagation();
-    if (gameState !== 'PLAYING' || nukeAmount <= 0) return;
+    if (gameState !== 'PLAYING' || isPaused || nukeAmount <= 0) return;
 
     let targetIndex = -1;
     let minDistance = Infinity;
@@ -411,8 +486,9 @@ function useNuke(e) {
     }
 }
 
+// 點擊事件監聽
 canvas.addEventListener('pointerdown', (e) => {
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING' || isPaused) return;
 
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -443,7 +519,16 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 });
 
+// 鍵盤監聽
 window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyP' || e.code === 'Escape') {
+        e.preventDefault();
+        togglePause();
+        return;
+    }
+
+    if (isPaused) return; // 暫停時鎖定其餘按鍵操作
+
     if (e.code === 'Space') {
         e.preventDefault();
         if (gameState === 'PLAYING') {
@@ -526,7 +611,7 @@ function addFloatingText(x, y, text, color) {
 }
 
 function update(dt) {
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING' || isPaused) return;
 
     const timeScale = isAimingC4 ? 0.25 : 1.0;
     const scaledDt = dt * timeScale;
@@ -552,7 +637,7 @@ function update(dt) {
         nextBonusTime = 6.0 + Math.random() * 4.0;
     }
 
-    // 1. 獎勵方塊收集判定
+    // 1. 獎勵方塊收集
     for (let i = bonusCubes.length - 1; i >= 0; i--) {
         const bonus = bonusCubes[i];
         bonus.x -= currentSpeed * scaledDt;
@@ -562,7 +647,6 @@ function update(dt) {
             const bonusTopY = bonus.layer * layerHeight;
             const bonusBottomY = (bonus.layer + 1) * layerHeight;
 
-            // 檢查玩家目前持有的任一方塊是否與獎勵方塊重疊
             for (let idx = 0; idx < player.cubeCount; idx++) {
                 const pBoxTop = (player.currentVisualBottom - idx) * layerHeight;
                 const pBoxBottom = (player.currentVisualBottom - idx + 1) * layerHeight;
@@ -587,7 +671,7 @@ function update(dt) {
         }
     }
 
-    // 2. 障礙物碰撞與「精確點對點消塊」邏輯
+    // 2. 障礙物碰撞與點對點精確消塊
     const hitPadding = 3;
     let isCurrentlyOverlappingAnyObstacle = false;
 
@@ -602,19 +686,17 @@ function update(dt) {
                 let coreHit = false;
                 let destroyedBodyIndices = [];
 
-                // 針對玩家的「每一個方塊」進行精確 AABB 幾何檢測
                 for (let idx = 0; idx < player.cubeCount; idx++) {
                     const isCore = (idx === player.cubeCount - 1);
                     const pBoxTop = (player.currentVisualBottom - idx) * layerHeight;
                     const pBoxBottom = (player.currentVisualBottom - idx + 1) * layerHeight;
 
-                    // 檢查此方塊是否碰到了該障礙物的任一紅色障礙層
                     let hasCollidedWithObs = false;
                     for (let l of obs.layers) {
                         const obsTop = l * layerHeight;
                         const obsBottom = (l + 1) * layerHeight;
                         const overlapY = Math.min(pBoxBottom, obsBottom) - Math.max(pBoxTop, obsTop);
-                        if (overlapY > 5) { // 重疊超過 5 像素才判定為碰觸
+                        if (overlapY > 5) {
                             hasCollidedWithObs = true;
                             break;
                         }
@@ -630,7 +712,6 @@ function update(dt) {
                     }
                 }
 
-                // 核心頭部撞擊 -> 立即 Game Over
                 if (coreHit) {
                     const coreY = (player.currentVisualBottom - (player.cubeCount - 1)) * layerHeight;
                     createExplosion(player.x, coreY, '#00f2fe');
@@ -638,8 +719,6 @@ function update(dt) {
                     return;
                 }
 
-                // 關鍵改進：只有「真正碰觸到障礙物的身體方塊」才被炸毀消滅！
-                // 未接觸障礙物的健康方塊全部 100% 完整保留！
                 if (destroyedBodyIndices.length > 0) {
                     for (let idx of destroyedBodyIndices) {
                         const py = (player.currentVisualBottom - idx) * layerHeight;
@@ -647,11 +726,9 @@ function update(dt) {
                     }
 
                     const hitCount = destroyedBodyIndices.length;
-                    // 只扣除實際被撞到的方塊數量
                     player.cubeCount = Math.max(1, player.cubeCount - hitCount);
-                    // 核心高度分毫不動，重新錨定底部位置
                     player.currentVisualBottom -= hitCount;
-                    player.hangTimer = 0.25; // 滯空防墜保護
+                    player.hangTimer = 0.25;
                 }
 
                 obs.resolved = true;
@@ -832,12 +909,30 @@ function draw() {
         ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+
+    // 8. 暫停畫面覆蓋標記
+    if (isPaused) {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#00f2fe';
+        ctx.shadowBlur = 15;
+        ctx.fillText('⏸️ 遊戲暫停', canvas.width / 2, canvas.height / 2);
+        ctx.shadowBlur = 0;
+    }
 }
 
 function gameOver() {
     gameState = 'GAMEOVER';
     isAimingC4 = false;
+    isPaused = false;
+    pauseBtn.classList.add('hidden');
     updateItemsUI();
+
     const mins = Math.floor(elapsedTime / 60);
     const secs = (elapsedTime % 60).toFixed(1);
     const timeStr = `${String(mins).padStart(2, '0')}:${secs.padStart(4, '0')}`;
